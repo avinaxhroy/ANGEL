@@ -1,5 +1,7 @@
 # ANGEL 🔄
 
+> **A Natural Experience for Looking**
+
 A lightweight, privacy-friendly browser extension that enhances Instagram Reels viewing with smart rotation, aspect ratio controls, theater mode, and true fullscreen.
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue)

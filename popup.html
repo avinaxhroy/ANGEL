@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANGEL</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(145deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+      color: #ffffff;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .logo {
+      font-size: 32px;
+      animation: spin 6s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #fff, #e94560);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 3px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      margin-bottom: 18px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4caf50;
+      box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.inactive {
+      background: #ff9800;
+      box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+      animation: none;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.7;
+        transform: scale(0.9);
+      }
+    }
+
+    .status-text {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #e94560;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 10px;
+    }
+
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .shortcut-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .shortcut-action {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .shortcut-key {
+      background: rgba(233, 69, 96, 0.15);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #e94560;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .feature {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px 8px;
+      border-radius: 10px;
+      text-align: center;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .feature:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(233, 69, 96, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .feature-text {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.3;
+    }
+
+    .tip {
+      margin-top: 16px;
+      padding: 10px 12px;
+      background: rgba(233, 69, 96, 0.1);
+      border-left: 3px solid #e94560;
+      border-radius: 0 8px 8px 0;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .tip strong {
+      color: #e94560;
+    }
+
+    .footer {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-text {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .privacy-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: rgba(76, 175, 80, 0.15);
+      border-radius: 20px;
+      font-size: 9px;
+      color: #4caf50;
+      font-weight: 500;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <span class="logo">⟳</span>
+    <div>
+      <div class="title">ANGEL</div>
+      <div class="subtitle">Enhanced Reels Experience</div>
+    </div>
+  </div>
+
+  <div class="status" id="status">
+    <div class="status-dot" id="status-dot"></div>
+    <span class="status-text" id="status-text">Checking status...</span>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Keyboard Shortcuts</div>
+    <div class="shortcut-grid">
+      <div class="shortcut-item">
+        <span class="shortcut-action">Rotate CW</span>
+        <span class="shortcut-key">R</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Rotate CCW</span>
+        <span class="shortcut-key">L</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Theater</span>
+        <span class="shortcut-key">T</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Fullscreen</span>
+        <span class="shortcut-key">F</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Aspect</span>
+        <span class="shortcut-key">A</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Reset</span>
+        <span class="shortcut-key">Esc</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Zoom In</span>
+        <span class="shortcut-key">=</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-action">Zoom Out</span>
+        <span class="shortcut-key">-</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Features</div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🔄</div>
+        <div class="feature-text">Smart Rotation</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📐</div>
+        <div class="feature-text">Aspect Ratios</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎬</div>
+        <div class="feature-text">Theater Mode</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⛶</div>
+        <div class="feature-text">Fullscreen</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔍</div>
+        <div class="feature-text">Zoom & Pan</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">✨</div>
+        <div class="feature-text">Auto SPA</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>Tip:</strong> Use <span class="shortcut-key" style="margin: 0 3px;">Shift</span> + Scroll to zoom!
+  </div>
+
+  <div class="footer">
+    <div class="footer-text">v2.0.0</div>
+    <div class="privacy-badge">
+      <span>🔒</span>
+      <span>Privacy First</span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

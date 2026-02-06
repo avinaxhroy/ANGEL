@@ -171,6 +171,10 @@
     // Current video reference
     currentVideo: null,
     currentVideoSrc: null,
+    lastViewport: {
+      width: window.innerWidth,
+      height: window.innerHeight
+    },
 
     // Cached elements
     backdrop: null,
@@ -1634,7 +1638,17 @@
     }
 
     // Find HD info using multiple strategies
-    const hdInfo = findHDInfo(currentSrc);
+    let hdInfo = findHDInfo(currentSrc);
+
+    // Fallback: if Instagram briefly downgrades after interactions, reuse last known HD URL.
+    if ((!hdInfo || !hdInfo.url) && video._hdUrl) {
+      hdInfo = {
+        url: video._hdUrl,
+        width: GlobalState.currentVideoQuality?.width || video.videoWidth || 0,
+        height: GlobalState.currentVideoQuality?.height || video.videoHeight || 0
+      };
+      log('Using stored HD URL fallback');
+    }
 
     // v4: Use adaptive retry config
     const elapsedTime = Date.now() - video._hdAttemptStartTime;
@@ -1889,9 +1903,13 @@
 
     const buttons = {};
 
+    // In overlay mode, trust the tracked current video and its original container.
+    // findActiveVideo() can drift to adjacent reels while rotated/overlay is active.
+    const isOverlayContext = GlobalState.isOverlayActive && !!GlobalState.currentVideo;
+
     // CRITICAL: Always get fresh video reference to avoid targeting wrong reel
     // This fixes the race condition when user likes right after scrolling
-    const video = findActiveVideo();
+    const video = isOverlayContext ? GlobalState.currentVideo : findActiveVideo();
 
     // Update GlobalState if we found a different video (handles scroll timing issues)
     if (video && video !== GlobalState.currentVideo) {
@@ -1901,16 +1919,20 @@
     let reelContainer = null;
 
     if (video) {
+      const containerSource = (isOverlayContext && video._ir_originalParent)
+        ? video._ir_originalParent
+        : video;
+
       // Find the reel container (article or section containing the video)
       // Be very specific to avoid picking up other reels' containers
-      reelContainer = video.closest('article') ||
-        video.closest('section') ||
-        video.closest('[role="presentation"]') ||
-        video.closest('div[style*="height: 100%"]');
+      reelContainer = containerSource.closest('article') ||
+        containerSource.closest('section') ||
+        containerSource.closest('[role="presentation"]') ||
+        containerSource.closest('div[style*="height: 100%"]');
 
       // If no container found, try parent traversal to find a reel-like container
       if (!reelContainer) {
-        let parent = video.parentElement;
+        let parent = containerSource.parentElement;
         for (let i = 0; i < 10 && parent; i++) {
           // Look for a container that seems like a reel wrapper
           if (parent.querySelector('svg[aria-label]') ||
@@ -1932,7 +1954,12 @@
 
     // If no reel container, use viewport-based search as fallback
     // CRITICAL: Get fresh video rect to ensure we match buttons to the current visible video
-    const videoRect = video ? video.getBoundingClientRect() : null;
+    // In overlay mode, use the original placeholder position to match the right reel actions.
+    const videoRect = video
+      ? ((isOverlayContext && video._ir_placeholder)
+        ? video._ir_placeholder.getBoundingClientRect()
+        : video.getBoundingClientRect())
+      : null;
 
     // Additional check: verify video is actually visible in viewport
     if (videoRect) {
@@ -2295,8 +2322,9 @@
   function triggerLike() {
     // Ensure we have the current reel's video before finding buttons
     // This prevents liking the previous reel when user scrolls then quickly likes
-    const currentVideo = findActiveVideo();
-    if (currentVideo && currentVideo !== GlobalState.currentVideo) {
+    const useOverlayVideo = GlobalState.isOverlayActive && !!GlobalState.currentVideo;
+    const currentVideo = useOverlayVideo ? GlobalState.currentVideo : findActiveVideo();
+    if (!useOverlayVideo && currentVideo && currentVideo !== GlobalState.currentVideo) {
       log('triggerLike: syncing to new video before action');
       handleVideoChange(currentVideo);
       // Give DOM time to settle after video change
@@ -3379,11 +3407,22 @@
     // Window resize
     try {
       GlobalState.resizeObserver = new ResizeObserver(() => {
+        const viewportChanged =
+          GlobalState.lastViewport.width !== window.innerWidth ||
+          GlobalState.lastViewport.height !== window.innerHeight;
+
+        if (viewportChanged) {
+          GlobalState.lastViewport.width = window.innerWidth;
+          GlobalState.lastViewport.height = window.innerHeight;
+        }
+
         if (GlobalState.isOverlayActive) {
           applyTransforms();
         } else if (GlobalState.currentVideo) {
-          // Refresh baseline size after viewport/layout changes.
-          captureVideoDimensions(GlobalState.currentVideo, true);
+          // Only refresh baseline when viewport truly changes.
+          if (viewportChanged) {
+            captureVideoDimensions(GlobalState.currentVideo, true);
+          }
           if (GlobalState.hdMode) {
             enforceDimensionsIfNeeded(GlobalState.currentVideo);
           }

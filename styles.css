@@ -8,18 +8,53 @@
 /* ============================================
    CSS VARIABLES
    ============================================ */
+/* ============================================
+   CSS VARIABLES
+   ============================================ */
+/* ============================================
+   CSS VARIABLES
+   ============================================ */
 :root {
-  --ir-bg: rgba(15, 15, 25, 0.95);
-  --ir-bg-hover: rgba(25, 25, 40, 0.98);
-  --ir-accent: #e94560;
-  --ir-accent-glow: rgba(233, 69, 96, 0.3);
+  /* Core palette - Deep & Rich */
+  --ir-bg: rgba(18, 18, 24, 0.75);
+  --ir-bg-hover: rgba(25, 25, 32, 0.85);
+
+  /* Glass Surface Layers */
+  --ir-surface: rgba(255, 255, 255, 0.04);
+  --ir-surface-hover: rgba(255, 255, 255, 0.08);
+  --ir-surface-active: rgba(255, 255, 255, 0.12);
+  --ir-surface-border: rgba(255, 255, 255, 0.06);
+
+  /* Brand colors - Neon Gradient */
+  --ir-accent: #ff4757;
+  --ir-accent-gradient: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+  --ir-accent-glow: rgba(255, 71, 87, 0.5);
+
+  /* Text - Crisp & Readable */
   --ir-text: #ffffff;
-  --ir-text-dim: rgba(255, 255, 255, 0.6);
-  --ir-border: rgba(255, 255, 255, 0.08);
-  --ir-radius: 16px;
-  --ir-radius-sm: 10px;
-  --ir-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--ir-border);
-  --ir-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --ir-text-secondary: rgba(255, 255, 255, 0.75);
+  --ir-text-muted: rgba(255, 255, 255, 0.5);
+
+  /* Borders & Shadows - Depth Effects */
+  --ir-border-light: rgba(255, 255, 255, 0.1);
+  --ir-border-dark: rgba(0, 0, 0, 0.2);
+
+  /* 3D Glass Shadow */
+  --ir-shadow-panel:
+    0 24px 48px -12px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+
+  --ir-shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --ir-shadow-btn-active: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  /* Metrics */
+  --ir-radius-panel: 24px;
+  --ir-radius-element: 12px;
+  --ir-radius-full: 999px;
+  --ir-blur: blur(40px);
+  --ir-transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ir-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ============================================
@@ -31,12 +66,13 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(5, 5, 8, 0.92);
   z-index: 99998;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-  cursor: pointer;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .ir-backdrop.active {
@@ -79,9 +115,12 @@
   max-height: none !important;
   width: auto !important;
   height: auto !important;
-  transition: transform 0.3s cubic-bezier(0.2, 0, 0.2, 1) !important;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
   pointer-events: auto !important;
   object-fit: contain !important;
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  /* Slight rounding for elegance */
 }
 
 /* Video placeholder (maintains layout when video is moved) */
@@ -101,41 +140,50 @@ body.ir-overlay-active {
    ============================================ */
 #ir-exit-hint {
   position: fixed;
-  top: 20px;
+  top: 32px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(-20px);
   z-index: 100002;
-  padding: 12px 24px;
-  background: rgba(0, 0, 0, 0.85);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 30px;
+  padding: 8px 24px;
+  background: rgba(30, 30, 35, 0.6);
+  color: var(--ir-text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
   font-size: 13px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--ir-font-sans);
   cursor: pointer;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease, background 0.2s ease;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  transition: var(--ir-transition);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 #ir-exit-hint.visible {
   opacity: 1;
   visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 #ir-exit-hint kbd {
-  background: rgba(255, 255, 255, 0.15);
-  padding: 3px 8px;
-  border-radius: 5px;
-  margin: 0 3px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
   font-family: inherit;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--ir-text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 #ir-exit-hint:hover {
-  background: rgba(233, 69, 96, 0.9);
-  border-color: rgba(233, 69, 96, 0.5);
+  background: rgba(40, 40, 50, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(-50%) translateY(2px);
 }
 
 /* ============================================
@@ -143,56 +191,160 @@ body.ir-overlay-active {
    ============================================ */
 #angel-ctrl {
   position: fixed;
-  top: 80px;
-  right: 20px;
+  top: 32px;
+  right: 32px;
   z-index: 100010;
-  width: 220px;
-  background: var(--ir-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: var(--ir-radius);
-  box-shadow: var(--ir-shadow);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  width: 300px;
+  /* Premium Glassmorphism */
+  background: linear-gradient(180deg,
+      rgba(20, 20, 28, 0.85) 0%,
+      rgba(10, 10, 16, 0.95) 100%);
+  backdrop-filter: blur(50px) saturate(1.8);
+  -webkit-backdrop-filter: blur(50px) saturate(1.8);
+  border-radius: var(--ir-radius-panel);
+  box-shadow:
+    0 40px 100px -20px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 40px rgba(0, 0, 0, 0.4);
+  font-family: var(--ir-font-sans);
   color: var(--ir-text);
   overflow: hidden;
   transition:
-    opacity var(--ir-transition),
-    transform var(--ir-transition),
-    width var(--ir-transition),
-    box-shadow var(--ir-transition);
+    transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   user-select: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 #angel-ctrl:hover {
-  box-shadow: var(--ir-shadow), 0 0 30px var(--ir-accent-glow);
+  box-shadow:
+    0 50px 120px -20px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 40px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
 }
 
 /* Auto-hide state */
 #angel-ctrl.auto-hide {
-  opacity: 0.15;
-  transform: translateX(180px);
+  opacity: 0;
+  transform: translateX(50px) scale(0.92);
+  visibility: hidden;
+  pointer-events: none;
+  filter: blur(4px);
 }
 
 #angel-ctrl.auto-hide:hover {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateX(0) scale(1);
+  visibility: visible;
+  pointer-events: auto;
+  filter: blur(0);
 }
 
 /* Minimized state */
 #angel-ctrl.minimized {
-  width: 90px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(30, 30, 40, 0.9);
 }
 
 #angel-ctrl.minimized .ir-content {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+#angel-ctrl.minimized .ir-handle {
+  padding: 0;
+  height: 100%;
+  justify-content: center;
+  background: transparent;
+  border: none;
+}
+
+#angel-ctrl.minimized .ir-brand,
+#angel-ctrl.minimized .ir-handle-btns {
   display: none;
 }
 
-#angel-ctrl.minimized .ir-collapsed-hint {
-  display: flex;
+/* Floating Logo in minimized state */
+#angel-ctrl.minimized::after {
+  content: "✦";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  color: var(--ir-accent);
+  text-shadow: 0 0 12px var(--ir-accent-glow);
 }
 
-#angel-ctrl.minimized .ir-name {
-  display: none;
+/* ============================================
+   FLOATING REVEAL BUTTON
+   ============================================ */
+.angel-reveal-btn {
+  position: fixed;
+  top: 32px;
+  right: 32px;
+  z-index: 100009;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+
+  /* Glassmorphism style matching the panel */
+  background: linear-gradient(180deg,
+      rgba(30, 30, 40, 0.9) 0%,
+      rgba(20, 20, 28, 0.95) 100%);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  box-shadow:
+    0 8px 32px -8px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+
+  /* Icon styling */
+  font-size: 20px;
+  color: var(--ir-accent);
+  text-shadow: 0 0 10px var(--ir-accent-glow);
+
+  /* Hidden by default */
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.8) rotate(-90deg);
+  pointer-events: none;
+
+  /* Smooth transition */
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.angel-reveal-btn.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) rotate(0deg);
+  pointer-events: auto;
+}
+
+.angel-reveal-btn:hover {
+  transform: scale(1.1) rotate(15deg);
+  box-shadow:
+    0 12px 40px -6px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    0 0 20px var(--ir-accent-glow),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.angel-reveal-btn:active {
+  transform: scale(0.95) rotate(0deg);
 }
 
 /* ============================================
@@ -202,489 +354,616 @@ body.ir-overlay-active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(233, 69, 96, 0.15), transparent);
-  border-bottom: 1px solid var(--ir-border);
+  padding: 16px 20px;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.01) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: grab;
+  position: relative;
+}
+
+.ir-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 50%,
+      transparent 100%);
+}
+
+.ir-handle:active {
+  cursor: grabbing;
 }
 
 .ir-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.ir-logo {
-  font-size: 18px;
-  color: var(--ir-accent);
-  animation: ir-spin 8s linear infinite;
-  animation-play-state: paused;
-}
-
-#angel-ctrl:hover .ir-logo {
-  animation-play-state: running;
-}
-
-@keyframes ir-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.ir-logo-svg {
+  width: 20px;
+  height: 20px;
+  fill: var(--ir-accent);
+  filter: drop-shadow(0 0 8px var(--ir-accent-glow));
 }
 
 .ir-name {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .ir-handle-btns {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
-.ir-btn-mini {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 6px;
+.ir-btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--ir-text-dim);
-  font-size: 12px;
+  color: var(--ir-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--ir-transition);
+  border: none;
   cursor: pointer;
-  transition: all var(--ir-transition);
 }
 
-.ir-btn-mini:hover {
+.ir-btn-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.ir-btn-icon:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: var(--ir-text);
+  color: #fff;
 }
 
 /* ============================================
    CONTENT
    ============================================ */
 .ir-content {
-  padding: 12px;
+  padding: 16px 20px 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+/* Scrollbar */
+.ir-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ir-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ir-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.ir-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .ir-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.ir-group>label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--ir-text-dim);
+.ir-group-flat {
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  /* Inner shadow for "sunken" feel */
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.ir-group-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  padding: 0 4px;
 }
 
-.ir-group>label kbd {
-  font-size: 9px;
-  padding: 2px 5px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  font-family: inherit;
+.ir-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--ir-text-secondary);
+  opacity: 0.9;
+}
+
+.ir-label-small {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ir-text-muted);
+  width: 36px;
 }
 
 /* ============================================
-   ROWS & BUTTONS
+   CONTROLS & BUTTONS
    ============================================ */
 .ir-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  justify-content: space-between;
 }
 
+/* Base Button - Glassy & Tactile */
 .ir-btn {
-  width: 40px;
-  height: 36px;
-  border: none;
-  border-radius: var(--ir-radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--ir-text);
-  font-size: 16px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--ir-surface);
+  color: var(--ir-text-secondary);
   cursor: pointer;
-  transition: all var(--ir-transition);
+  transition: var(--ir-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 1;
+  /* Top highlight for 3D feel */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.ir-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  opacity: 0.9;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.ir-btn:hover {
+  background: var(--ir-surface-hover);
+  color: var(--ir-text);
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.ir-btn:active {
+  transform: translateY(0) scale(0.98);
+  background: var(--ir-surface-active);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Secondary Button (Darker) */
+.ir-btn-secondary {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ir-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Ghost Button */
+.ir-btn-ghost {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: var(--ir-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.ir-btn-ghost:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.ir-btn-ghost svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.ir-btn-ghost span {
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.ir-btn:hover {
-  background: var(--ir-accent);
-  transform: scale(1.08);
-}
-
-.ir-btn:active {
-  transform: scale(0.95);
-}
-
-.ir-btn-sm {
-  width: 32px;
-  height: 32px;
-  font-size: 14px;
-}
-
-/* High-visibility action buttons */
-.ir-btn-action {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-size: 18px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.ir-btn-action:hover {
-  background: linear-gradient(145deg, var(--ir-accent), rgba(233, 69, 96, 0.8));
-  border-color: var(--ir-accent);
-  box-shadow: 0 4px 15px var(--ir-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-/* Play button - larger and more prominent */
+/* Primary Play Button */
 .ir-btn-play {
-  width: 50px;
-  height: 44px;
-  font-size: 22px;
-  background: linear-gradient(145deg, var(--ir-accent), rgba(233, 69, 96, 0.85));
-  border-color: var(--ir-accent);
+  background: var(--ir-accent);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+  color: white;
+  flex: 0 0 60px;
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 71, 87, 0.5);
 }
 
 .ir-btn-play:hover {
-  background: linear-gradient(145deg, #ff5a75, var(--ir-accent));
-  transform: scale(1.1);
+  background-color: #ff5e6c;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: #ff6b81;
 }
 
-/* Playback controls row */
-.ir-playback-row {
-  justify-content: center;
-  gap: 12px;
+/* Active State */
+.ir-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
-.ir-playback-group {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--ir-border);
-  margin-bottom: 4px;
+.ir-btn-mode {
+  height: 42px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ir-btn-mode.active {
+  background: var(--ir-accent);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 15px var(--ir-accent-glow);
 }
 
 /* ============================================
-   SOCIAL ACTION BUTTONS
+   CONTROL GROUPS (Segmented Controls)
    ============================================ */
-.ir-social-row {
-  justify-content: space-between;
-  gap: 8px;
+.ir-control-group {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.ir-btn-social {
-  flex: 1;
-  height: 42px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  font-size: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+.ir-control-group .ir-btn {
+  border-radius: 8px;
+  background: transparent;
+  width: 36px;
+  height: 32px;
+  box-shadow: none;
+  border: none;
 }
 
-.ir-btn-social:hover {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
-  transform: scale(1.08);
+.ir-control-group .ir-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-/* Like button - highlight when liked */
-.ir-btn-like:hover {
-  background: linear-gradient(145deg, rgba(255, 100, 100, 0.3), rgba(255, 50, 50, 0.15));
-  border-color: rgba(255, 100, 100, 0.4);
-}
-
-/* Save button - highlight when saved */
-.ir-btn-save:hover {
-  background: linear-gradient(145deg, rgba(255, 200, 100, 0.3), rgba(255, 180, 50, 0.15));
-  border-color: rgba(255, 200, 100, 0.4);
-}
-
-/* Like button keyboard shortcut */
-.ir-like-kbd {
-  position: absolute;
-  bottom: 2px;
-  right: 3px;
-  font-size: 9px;
+.ir-control-group .ir-badge-box {
+  background: transparent;
+  border: none;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 1px 3px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-  opacity: 0.7;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-
-.ir-btn-like {
-  position: relative;
-}
-
-/* Indicator display */
-.ir-indicator {
-  flex: 1;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ir-accent);
-  padding: 8px;
-  background: rgba(233, 69, 96, 0.1);
-  border-radius: var(--ir-radius-sm);
+  min-width: 44px;
+  color: var(--ir-text);
   font-variant-numeric: tabular-nums;
 }
 
 /* ============================================
-   ASPECT RATIO BUTTONS
+   GRIDS & LAYOUTS
    ============================================ */
-.ir-aspect-row {
+.ir-action-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: auto auto auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.ir-aspect-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 
-.ir-aspect {
-  height: 32px;
-  border: none;
+.ir-aspect-pill {
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--ir-text-dim);
-  font-size: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ir-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--ir-transition);
+  transition: var(--ir-transition);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.ir-aspect:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--ir-text);
-  transform: translateY(-2px);
+.ir-aspect-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
-.ir-aspect.active {
-  background: var(--ir-accent);
-  color: white;
-  box-shadow: 0 4px 12px var(--ir-accent-glow);
-}
-
-/* ============================================
-   HD QUALITY CONTROLS
-   ============================================ */
-.ir-hd-toggle {
-  background: linear-gradient(145deg, rgba(100, 200, 100, 0.15), rgba(80, 180, 80, 0.08));
-  border: 1px solid rgba(100, 200, 100, 0.3);
-}
-
-.ir-hd-toggle:hover {
-  background: linear-gradient(145deg, rgba(100, 200, 100, 0.3), rgba(80, 180, 80, 0.15));
-  border-color: rgba(100, 200, 100, 0.5);
-}
-
-.ir-hd-toggle.active {
-  background: linear-gradient(145deg, rgba(46, 204, 113, 0.4), rgba(39, 174, 96, 0.25));
-  border-color: rgba(46, 204, 113, 0.6);
-  box-shadow: 0 0 12px rgba(46, 204, 113, 0.3);
-}
-
-.ir-quality-indicator {
-  font-size: 12px;
+.ir-aspect-pill.active {
+  background: #fff;
+  color: #000;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  transition: all var(--ir-transition);
+  border-color: #fff;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
 }
 
-.ir-quality-indicator.ir-hd-active {
-  background: linear-gradient(145deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.1));
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.3);
+.ir-social-grid {
+  display: flex;
+  gap: 10px;
+}
+
+.ir-btn-social {
+  height: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Specific states for Like/Save */
+.ir-btn-like.active {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.15);
+  border-color: rgba(255, 71, 87, 0.4);
+  box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
+}
+
+.ir-btn-save.active {
+  color: #ffa502;
+  background: rgba(255, 165, 2, 0.15);
+  border-color: rgba(255, 165, 2, 0.4);
+  box-shadow: 0 0 15px rgba(255, 165, 2, 0.2);
 }
 
 /* ============================================
-   ZOOM SLIDER
+   SLIDERS
    ============================================ */
-.ir-range {
+.ir-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.ir-slider-wrapper {
   flex: 1;
-  height: 6px;
+  display: flex;
+  align-items: center;
+  height: 24px;
+}
+
+.ir-range {
+  width: 100%;
+  height: 4px;
   -webkit-appearance: none;
   appearance: none;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  border-radius: 2px;
+  outline: none;
   cursor: pointer;
-}
-
-/* Volume range with gradient */
-.ir-volume-range {
-  background: linear-gradient(to right,
-      rgba(233, 69, 96, 0.3) 0%,
-      rgba(255, 255, 255, 0.15) 100%);
 }
 
 .ir-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--ir-accent);
+  background: #fff;
   cursor: pointer;
-  transition: transform var(--ir-transition);
-  box-shadow: 0 2px 8px var(--ir-accent-glow);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  border: 2px solid transparent;
 }
 
-.ir-range::-webkit-slider-thumb:hover {
+.ir-range:hover::-webkit-slider-thumb {
   transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
-.ir-range::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: none;
-  border-radius: 50%;
+.ir-range:active::-webkit-slider-thumb {
+  transform: scale(1.1);
   background: var(--ir-accent);
-  cursor: pointer;
 }
 
-.ir-zoom-label {
-  text-align: center;
+.ir-range-value {
   font-size: 11px;
-  color: var(--ir-text-dim);
+  font-weight: 700;
+  color: var(--ir-text-secondary);
+  width: 34px;
+  text-align: right;
   font-variant-numeric: tabular-nums;
+  transition: var(--ir-transition);
 }
 
-/* ============================================
-   MODE BUTTONS
-   ============================================ */
-.ir-modes-group {
-  flex-direction: row !important;
-  gap: 8px !important;
-}
-
-.ir-mode {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 8px;
-  border: 1px solid var(--ir-border);
-  border-radius: var(--ir-radius-sm);
-  background: transparent;
-  color: var(--ir-text-dim);
-  cursor: pointer;
-  transition: all var(--ir-transition);
-}
-
-.ir-mode:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: var(--ir-text);
-}
-
-.ir-mode.active {
-  background: rgba(233, 69, 96, 0.15);
-  border-color: var(--ir-accent);
+/* Speed indicator highlight */
+.ir-range-value.speed-changed {
   color: var(--ir-accent);
 }
 
-.ir-mode-icon {
-  font-size: 18px;
+/* Speed range custom thumb */
+.ir-speed-range::-webkit-slider-thumb {
+  background: var(--ir-accent);
 }
 
-.ir-mode-label {
+.ir-speed-range:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 12px var(--ir-accent-glow);
+}
+
+/* ============================================
+   BADGES & QUALITY
+   ============================================ */
+.ir-badge {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ir-text-muted);
+  letter-spacing: 0.5px;
 }
 
-.ir-mode kbd {
-  font-size: 9px;
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  font-family: inherit;
-  opacity: 0.7;
-}
-
-/* ============================================
-   RESET BUTTON
-   ============================================ */
-.ir-reset {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: var(--ir-radius-sm);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--ir-text-dim);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--ir-transition);
-}
-
-.ir-reset:hover {
-  background: rgba(255, 80, 80, 0.2);
-  color: #ff6b6b;
-}
-
-/* ============================================
-   COLLAPSED HINT
-   ============================================ */
-.ir-collapsed-hint {
-  display: none;
-  padding: 8px 12px;
-  font-size: 11px;
-  color: var(--ir-text-dim);
+.ir-quality-badge {
+  display: flex;
+  align-items: center;
   justify-content: center;
-  letter-spacing: 2px;
+  padding: 0 16px;
+  height: 38px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 12px;
+  min-width: 70px;
+  border: 1px solid var(--ir-border-light);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ir-text-secondary);
+  transition: all 0.3s ease;
+  cursor: help;
+  position: relative;
+  overflow: hidden;
+}
+
+.ir-quality-badge.quality-4k {
+  background: linear-gradient(135deg, rgba(142, 45, 226, 0.2) 0%, rgba(74, 0, 224, 0.2) 100%);
+  color: #d1b3ff;
+  border-color: rgba(138, 43, 226, 0.4);
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.15);
+}
+
+.ir-quality-badge.quality-hd {
+  background: linear-gradient(135deg, rgba(17, 153, 142, 0.2) 0%, rgba(56, 239, 125, 0.2) 100%);
+  color: #a8ffc8;
+  border-color: rgba(56, 239, 125, 0.4);
+  box-shadow: 0 0 20px rgba(56, 239, 125, 0.15);
+}
+
+.ir-quality-badge.loading {
+  color: var(--ir-text-muted);
+}
+
+.ir-quality-badge.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--ir-accent);
+  animation: quality-load 1s infinite linear;
+}
+
+@keyframes quality-load {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+transparent,
+rgba(255, 255, 255, 0.2),
+transparent);
+animation: quality-shimmer 1.5s infinite;
+}
+
+@keyframes quality-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes quality-shimmer {
+  0% {
+    left: -100%;
+  }
+
+
+  100% {
+    left: 100%;
+  }
 }
 
 /* ============================================
-   TOAST NOTIFICATION
+   TOAST
    ============================================ */
 #angel-toast {
   position: fixed;
-  top: 50%;
+  top: 80px;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.8);
+  transform: translate(-50%, 10px);
   z-index: 100020;
-  padding: 16px 28px;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 12px;
-  color: white;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 18px;
+  padding: 10px 20px;
+  background: rgba(20, 20, 25, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff !important;
+  /* Force white text */
+  font-family: var(--ir-font-sans);
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 10px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 #angel-toast.visible {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, 0);
 }
 
-.ir-toast-icon {
-  font-size: 22px;
+.ir-toast-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--ir-accent);
 }
 
-/* ============================================
-   VIDEO BASE STYLES
-   ============================================ */
+/* Base Video Styles preserved */
 video {
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
 }
 
 /* ============================================
@@ -693,66 +972,351 @@ video {
 @media (max-width: 768px) {
   #angel-ctrl {
     top: auto;
-    bottom: 80px;
-    right: 10px;
-    width: 200px;
+    bottom: 24px;
+    right: 50%;
+    transform: translateX(50%);
+    width: 90vw;
+    max-width: 340px;
   }
 
   #angel-ctrl.auto-hide {
-    transform: translateY(180px);
+    transform: translateX(50%) translateY(20px);
+  }
+
+  #angel-ctrl:hover {
+    transform: translateX(50%) translateY(-2px);
   }
 }
 
-@media (max-height: 600px) {
-  #angel-ctrl {
-    top: 10px;
+/* Animation utilities */
+@keyframes ir-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
   }
 
-  .ir-content {
-    padding: 8px;
-    gap: 8px;
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
-/* Ultrawide */
-@media (min-aspect-ratio: 21/9) {
-  #angel-ctrl {
-    right: 40px;
+@keyframes ir-pop {
+  0% {
+    transform: scale(0.9);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ir-pop-anim {
+  animation: ir-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+
+/* ============================================
+   AESTHETIC IMPROVEMENTS
+   ============================================ */
+
+/* Sleeker toggles and interactive elements */
+.ir-btn.active {
+  background: var(--ir-accent-gradient);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px var(--ir-accent-glow);
+}
+
+/* Hover effects */
+#angel-ctrl:hover {
+  transform: translateY(0);
+  box-shadow: var(--ir-shadow-panel), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+/* Scrollbar polish */
+.ir-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.ir-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+#angel-loader {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  z-index: 100020;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 24px 32px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#angel-loader.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.ir-loader-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--ir-accent);
+  border-radius: 50%;
+  animation: ir-spin 0.8s linear infinite;
+}
+
+.ir-loader-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ir-text-secondary);
+  font-family: var(--ir-font-sans);
+  text-align: center;
+}
+
+@keyframes ir-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
 /* ============================================
-   ACCESSIBILITY
+   HD LOADING STATUS (Simplified - no fake progress)
    ============================================ */
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+#angel-hd-progress {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 100015;
+  /* Glassmorphism design */
+  background: rgba(15, 15, 20, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding: 14px 28px;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Force text color */
+  color: #ffffff !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Focus styles */
-#angel-ctrl button:focus-visible,
-#angel-ctrl input:focus-visible {
-  outline: 2px solid var(--ir-accent);
-  outline-offset: 2px;
+#angel-hd-progress.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Maximum specificity to force white text on gradient */
+#angel-hd-progress .ir-hd-status-text,
+#angel-hd-progress div.ir-hd-status-text,
+div#angel-hd-progress .ir-hd-status-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 700;
+  font-size: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ir-hd-status-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
 }
 
 /* ============================================
-   SCROLLBAR
+   SMOOTH TRANSFORM ANIMATIONS
    ============================================ */
-#angel-ctrl::-webkit-scrollbar {
-  width: 4px;
+
+/* Enhanced video transitions */
+.ir-overlay-video {
+  transition: transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 350ms ease,
+    height 350ms ease,
+    opacity 300ms ease !important;
 }
 
-#angel-ctrl::-webkit-scrollbar-track {
-  background: transparent;
+/* Backdrop fade animation */
+.ir-backdrop {
+  transition: opacity 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-#angel-ctrl::-webkit-scrollbar-thumb {
-  background: var(--ir-accent);
-  border-radius: 2px;
+/* Overlay fade animation */
+.ir-overlay {
+  transition: opacity 350ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth rotation animation */
+.ir-rotating {
+  animation: ir-rotate-smooth 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes ir-rotate-smooth {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(90deg);
+  }
+}
+
+/* Aspect ratio change animation */
+.ir-aspect-changing {
+  animation: ir-aspect-morph 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ir-aspect-morph {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Zoom animation */
+.ir-zooming {
+  animation: ir-zoom-pulse 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes ir-zoom-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ============================================
+   SKELETON LOADER (Control Panel)
+   ============================================ */
+#angel-ctrl-skeleton {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100010;
+  width: 280px;
+  height: 400px;
+  background: rgba(30, 31, 40, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  animation: ir-skeleton-fade-in 0.3s ease;
+}
+
+.ir-skeleton-header {
+  height: 60px;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.03) 100%);
+  background-size: 200% 100%;
+  animation: ir-skeleton-shimmer 1.5s infinite;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ir-skeleton-content {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ir-skeleton-row {
+  height: 40px;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.03) 100%);
+  background-size: 200% 100%;
+  animation: ir-skeleton-shimmer 1.5s infinite;
+  border-radius: 10px;
+}
+
+.ir-skeleton-row:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ir-skeleton-row:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes ir-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ir-skeleton-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Refined typography */
+.ir-label {
+  letter-spacing: 0.5px;
+  font-size: 10px;
+  color: var(--ir-text-muted);
 }

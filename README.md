@@ -33,6 +33,7 @@ A lightweight, privacy-friendly browser extension that enhances Instagram Reels 
 | `-` | Zoom out |
 | `Shift + Scroll` | Zoom with mouse wheel |
 | `Esc` | Reset all transforms |
+| `X` | Like / Unlike active Reel |
 
 ## 📐 Aspect Ratio Modes
 

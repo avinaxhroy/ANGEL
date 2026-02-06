@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ANGEL - Enhanced Instagram Reels",
-  "version": "3.5.0",
-  "description": "Enhance Instagram Reels with rotation, zoom, theater mode, aspect ratio controls, and true fullscreen. Privacy-friendly.",
+  "version": "3.6.0",
+  "description": "A Natural Experience for Looking. Rotation, zoom, theater mode, aspect ratios & fullscreen for Instagram Reels. Privacy-friendly.",
   "permissions": [
     "tabs"
   ],

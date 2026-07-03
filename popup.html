@@ -7,15 +7,39 @@
   <title>ANGEL</title>
   <style>
     :root {
-      --bg: #0f0f1a;
-      --surface: rgba(255, 255, 255, 0.05);
-      --surface-hover: rgba(255, 255, 255, 0.1);
+      --bg-deep: #08080c;
+      --bg-primary: #0d0d14;
+      --bg-secondary: #12121a;
+      --bg-elevated: rgba(255, 255, 255, 0.03);
+      --surface: rgba(255, 255, 255, 0.04);
+      --surface-hover: rgba(255, 255, 255, 0.08);
+      --surface-active: rgba(255, 255, 255, 0.12);
       --accent: #ff4757;
-      --accent-glow: rgba(255, 71, 87, 0.4);
-      --text: #ffffff;
-      --text-dim: rgba(255, 255, 255, 0.6);
-      --border: rgba(255, 255, 255, 0.1);
-      --radius: 12px;
+      --accent-hover: #ff5d6a;
+      --accent-gradient: linear-gradient(135deg, #ff4757 0%, #ff6b7a 100%);
+      --accent-soft: rgba(255, 71, 87, 0.12);
+      --accent-glow: rgba(255, 71, 87, 0.3);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.75);
+      --text-muted: rgba(255, 255, 255, 0.45);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(255, 255, 255, 0.12);
+      --success: #34d399;
+      --success-soft: rgba(52, 211, 153, 0.12);
+      --warning: #fbbf24;
+      --warning-soft: rgba(251, 191, 36, 0.12);
+      --radius-xs: 6px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+      --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 0.25s cubic-bezier(0.2, 0, 0, 1);
+      --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     * {
@@ -24,313 +48,984 @@
       box-sizing: border-box;
     }
 
+    html, body {
+      width: 380px;
+      min-height: 600px;
+    }
+
     body {
-      width: 320px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      padding: 20px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 0%, rgba(255, 71, 87, 0.12) 0%, transparent 45%),
+        radial-gradient(ellipse at 85% 100%, rgba(255, 71, 87, 0.08) 0%, transparent 45%),
+        linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .popup-container {
+      position: relative;
+      z-index: 1;
+      padding: 24px 20px 20px;
+      min-height: 600px;
     }
 
     /* Header */
     .header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
+      gap: 14px;
+      margin-bottom: 20px;
     }
 
-    .logo-container {
+    .logo-wrap {
       position: relative;
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 71, 87, 0.1);
-      border-radius: 12px;
+      background: var(--accent-soft);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 71, 87, 0.2);
+      box-shadow: var(--shadow-sm), 0 0 24px rgba(255, 71, 87, 0.15);
       overflow: hidden;
     }
 
-    .logo {
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
+    .logo-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--accent-gradient);
+      opacity: 0.1;
+      transition: opacity var(--transition-smooth);
     }
 
-    .title-group {
+    .logo-wrap:hover::before {
+      opacity: 0.2;
+    }
+
+    .logo-wrap::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(255, 71, 87, 0.5), transparent 60%);
+      z-index: -1;
+      opacity: 0.5;
+    }
+
+    .logo {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(255, 71, 87, 0.6));
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand {
       display: flex;
       flex-direction: column;
+      gap: 2px;
+      flex: 1;
     }
 
-    .title {
+    .brand-name {
       font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      background: linear-gradient(135deg, #fff, #a5b1c2);
-      background-clip: text;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.85) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    .subtitle {
-      font-size: 11px;
-      color: var(--text-dim);
+    .brand-tagline {
+      font-size: 9.5px;
+      color: var(--text-muted);
       font-weight: 500;
+      letter-spacing: 0.2px;
     }
 
-    /* Status */
-    .status {
+    .header-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+      color: var(--text-muted);
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    /* Status Card */
+    .status-card {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px 16px;
-      background: var(--surface);
+      padding: 12px 14px;
+      background: var(--bg-elevated);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      margin-bottom: 24px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+      transition: all var(--transition-smooth);
+    }
+
+    .status-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--success);
+      transition: background var(--transition-smooth);
+    }
+
+    .status-card.inactive::before {
+      background: var(--warning);
+    }
+
+    .status-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--border-hover);
+    }
+
+    .status-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--success-soft);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-smooth);
+    }
+
+    .status-card.inactive .status-icon {
+      background: var(--warning-soft);
     }
 
     .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #2ed573;
-      box-shadow: 0 0 12px rgba(46, 213, 115, 0.6);
-      position: relative;
+      background: var(--success);
+      box-shadow: 0 0 12px var(--success);
+      animation: status-pulse 2s ease-in-out infinite;
     }
 
-    .status-dot::after {
-      content: '';
-      position: absolute;
-      top: -4px;
-      left: -4px;
-      right: -4px;
-      bottom: -4px;
-      border-radius: 50%;
-      border: 1px solid rgba(46, 213, 115, 0.3);
-      animation: pulse 2s infinite;
-    }
-
-    .status-dot.inactive {
-      background: #ffa502;
-      box-shadow: none;
-    }
-
-    .status-dot.inactive::after {
-      border-color: rgba(255, 165, 2, 0.3);
+    .status-card.inactive .status-dot {
+      background: var(--warning);
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
       animation: none;
     }
 
-    @keyframes pulse {
-      0% {
-        transform: scale(0.8);
-        opacity: 1;
-      }
+    @keyframes status-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
 
-      100% {
-        transform: scale(1.5);
-        opacity: 0;
-      }
+    .status-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .status-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
     }
 
     .status-text {
       font-size: 12px;
-      font-weight: 500;
-      color: var(--text);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+      position: relative;
+    }
+
+    .tab:hover {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+
+    .section-icon {
+      width: 14px;
+      height: 14px;
+      color: var(--accent);
+      opacity: 0.7;
+    }
+
+    .section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
     }
 
     /* Shortcuts Grid */
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .grid {
+    .shortcuts-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin-bottom: 24px;
+      gap: 6px;
     }
 
-    .item {
+    .shortcut-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
-      background: var(--surface);
-      border-radius: 8px;
-      border: 1px solid transparent;
-      transition: 0.2s;
+      gap: 8px;
+      padding: 10px 11px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all var(--transition-smooth);
+      cursor: default;
+      position: relative;
+      overflow: hidden;
     }
 
-    .item:hover {
+    .shortcut-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.02));
+      opacity: 0;
+      transition: opacity var(--transition-smooth);
+    }
+
+    .shortcut-item:hover {
       background: var(--surface-hover);
-      border-color: var(--border);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
     }
 
-    .action {
-      font-size: 12px;
-      color: var(--text-dim);
+    .shortcut-item:hover::before {
+      opacity: 1;
+    }
+
+    .shortcut-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .shortcut-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+      opacity: 0.6;
+      flex-shrink: 0;
+      transition: all var(--transition-fast);
+    }
+
+    .shortcut-item:hover .shortcut-icon {
+      color: var(--accent);
+      opacity: 1;
+    }
+
+    .shortcut-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .shortcut-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .shortcut-keys {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
     }
 
     .key {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 11px;
-      font-weight: 700;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 9px;
+      font-weight: 600;
       color: var(--accent);
-      background: rgba(255, 71, 87, 0.1);
-      padding: 2px 6px;
+      background: var(--accent-soft);
+      padding: 3px 5px;
       border-radius: 4px;
-      min-width: 20px;
+      min-width: 16px;
       text-align: center;
+      border: 1px solid rgba(255, 71, 87, 0.15);
+      transition: all var(--transition-fast);
     }
 
-    /* Features List */
-    .features {
+    .shortcut-item:hover .key {
+      background: rgba(255, 71, 87, 0.2);
+      border-color: rgba(255, 71, 87, 0.3);
+      transform: scale(1.05);
+    }
+
+    .key-separator {
+      font-size: 7px;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* Settings Card */
+    .settings-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+
+    .field-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: -2px;
+    }
+
+    .field-hint {
+      font-size: 9px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-top: -2px;
+    }
+
+    .template-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .template-input {
+      flex: 1;
+      min-width: 0;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--text-primary);
+      font-size: 11px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      transition: all var(--transition-smooth);
+    }
+
+    .template-input:focus {
+      outline: none;
+      border-color: rgba(255, 71, 87, 0.5);
+      background: rgba(0, 0, 0, 0.35);
+      box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.1);
+    }
+
+    .template-reset {
+      padding: 0 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+    }
+
+    .template-reset:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .template-reset:active {
+      transform: scale(0.97);
+    }
+
+    .settings-preview {
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(0, 255, 136, 0.05);
+      border: 1px dashed rgba(52, 211, 153, 0.2);
+      color: rgba(52, 211, 153, 0.9);
+      font-size: 10.5px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      word-break: break-all;
+    }
+
+    /* Toggle Switch */
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.15);
+      border: 1px solid transparent;
+      transition: all var(--transition-smooth);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .toggle-row:hover {
+      background: rgba(0, 0, 0, 0.2);
+      border-color: var(--border);
+    }
+
+    .toggle-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .toggle-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .toggle-desc {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 38px;
+      height: 22px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--surface);
+      border-radius: var(--radius-full);
+      transition: all var(--transition-smooth);
+      border: 1px solid var(--border);
+    }
+
+    .toggle-slider::before {
+      position: absolute;
+      content: '';
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background: var(--text-primary);
+      border-radius: 50%;
+      transition: all var(--transition-bounce);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(16px);
+    }
+
+    .toggle-switch input:focus + .toggle-slider {
+      box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.15);
+    }
+
+    /* Features Grid */
+    .features-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
     }
 
-    .feature {
+    .feature-card {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      padding: 12px 8px;
-      background: var(--surface);
-      border-radius: 10px;
+      gap: 7px;
+      padding: 12px 6px 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       text-align: center;
+      transition: all var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 0%, rgba(255, 71, 87, 0.03) 100%);
+      opacity: 0;
+      transition: opacity var(--transition-smooth);
+    }
+
+    .feature-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-icon-wrap {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-soft);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-smooth);
+      position: relative;
+    }
+
+    .feature-icon-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, transparent 0%, rgba(255, 71, 87, 0.1) 100%);
+      opacity: 0;
+      transition: opacity var(--transition-smooth);
+    }
+
+    .feature-card:hover .feature-icon-wrap {
+      background: rgba(255, 71, 87, 0.2);
+      transform: scale(1.08);
+    }
+
+    .feature-card:hover .feature-icon-wrap::after {
+      opacity: 1;
     }
 
     .feature-icon {
-      width: 20px;
-      height: 20px;
-      fill: var(--text);
-      opacity: 0.8;
+      width: 15px;
+      height: 15px;
+      fill: var(--accent);
+      position: relative;
+      z-index: 1;
     }
 
-    .feature-text {
+    .feature-label {
+      font-size: 8.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.1px;
+    }
+
+    /* Saved Indicator */
+    .saved-indicator {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--success-soft);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: var(--radius-full);
+      color: var(--success);
       font-size: 10px;
-      color: var(--text-dim);
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition-bounce);
+      z-index: 100;
+    }
+
+    .saved-indicator.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .saved-indicator svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+      margin: 18px 0;
     }
 
     /* Footer */
     .footer {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding-top: 14px;
     }
 
-    .version {
-      font-size: 10px;
-      color: var(--text-dim);
+    .version-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
-    .badge {
+    .version-label {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text-muted);
+    }
+
+    .version-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .privacy-pill {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      background: rgba(46, 213, 115, 0.1);
-      border-radius: 20px;
-      font-size: 10px;
-      font-weight: 600;
-      color: #2ed573;
+      padding: 8px 12px;
+      background: var(--success-soft);
+      border: 1px solid rgba(52, 211, 153, 0.15);
+      border-radius: var(--radius-full);
+      transition: all var(--transition-smooth);
+      cursor: default;
     }
 
-    .badge svg {
-      width: 10px;
-      height: 10px;
-      fill: currentColor;
+    .privacy-pill:hover {
+      background: rgba(52, 211, 153, 0.18);
+      border-color: rgba(52, 211, 153, 0.25);
+    }
+
+    .privacy-icon {
+      width: 12px;
+      height: 12px;
+      fill: var(--success);
+    }
+
+    .privacy-text {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--success);
+      letter-spacing: 0.2px;
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+    .status-card { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s backwards; }
+    .tabs { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards; }
+    .section:nth-of-type(1) { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s backwards; }
+    .section:nth-of-type(2) { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards; }
+    .section:nth-of-type(3) { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s backwards; }
+    .divider { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards; }
+    .footer { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.35s backwards; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+
+    /* Focus Visible */
+    *:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: relative;
+    }
+
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.9);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition-fast);
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+
+    .tooltip:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   </style>
 </head>
 
 <body>
-  <div class="header">
-    <div class="logo-container">
-      <img class="logo" src="icons/icon48.png" alt="ANGEL">
+  <div class="popup-container">
+    <header class="header">
+      <div class="logo-wrap">
+        <img class="logo" src="icons/icon48.png" alt="ANGEL">
+      </div>
+      <div class="brand">
+        <h1 class="brand-name">ANGEL</h1>
+        <p class="brand-tagline">Enhanced Instagram Reels Experience</p>
+      </div>
+    </header>
+
+    <div class="status-card" id="status-card" role="status" aria-live="polite">
+      <div class="status-icon">
+        <div class="status-dot" aria-hidden="true"></div>
+      </div>
+      <div class="status-info">
+        <span class="status-label">Status</span>
+        <span class="status-text" id="status-text">Checking...</span>
+      </div>
     </div>
-    <div class="title-group">
-      <div class="title">ANGEL</div>
-      <div class="subtitle">A Natural Experience for Looking</div>
+
+    <div class="tabs" role="tablist" aria-label="Settings tabs">
+      <button class="tab active" role="tab" aria-selected="true" data-tab="shortcuts">Shortcuts</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="features">Features</button>
     </div>
+
+    <section class="tab-content active" id="shortcuts-tab" role="tabpanel" aria-label="Keyboard shortcuts">
+      <div class="section">
+        <div class="section-header">
+          <svg class="section-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/>
+          </svg>
+          <h2 class="section-title">Quick Controls</h2>
+        </div>
+        <div class="shortcuts-grid" id="shortcuts-grid" role="list"></div>
+      </div>
+    </section>
+
+    <section class="tab-content" id="settings-tab" role="tabpanel" aria-label="Download settings">
+      <div class="section">
+        <div class="section-header">
+          <svg class="section-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-14 9v2h14v-2H5z"/>
+          </svg>
+          <h2 class="section-title">Download Settings</h2>
+        </div>
+        <div class="settings-card">
+          <div>
+            <label class="field-label" for="download-template">Filename Template</label>
+            <p class="field-hint" id="download-template-tags"></p>
+          </div>
+          <div class="template-row">
+            <input 
+              class="template-input" 
+              id="download-template" 
+              type="text" 
+              spellcheck="false" 
+              autocomplete="off"
+              aria-describedby="download-template-preview"
+            >
+            <button class="template-reset tooltip" id="download-template-reset" type="button" data-tooltip="Restore default" aria-label="Reset to default template">Reset</button>
+          </div>
+          <div class="settings-preview" id="download-template-preview" aria-live="polite"></div>
+          
+          <div class="divider"></div>
+          
+          <label class="toggle-row" for="download-carousel-index" role="switch" aria-checked="false">
+            <div class="toggle-copy">
+              <span class="toggle-title">Append Carousel Index</span>
+              <span class="toggle-desc">Adds numbered suffixes (_01, _02) when downloading carousel slides.</span>
+            </div>
+            <div class="toggle-switch">
+              <input id="download-carousel-index" type="checkbox" aria-label="Append carousel index">
+              <span class="toggle-slider" aria-hidden="true"></span>
+            </div>
+          </label>
+          
+          <label class="toggle-row" for="download-save-as" role="switch" aria-checked="false">
+            <div class="toggle-copy">
+              <span class="toggle-title">Ask Where to Save</span>
+              <span class="toggle-desc">Opens save dialog for single-file downloads.</span>
+            </div>
+            <div class="toggle-switch">
+              <input id="download-save-as" type="checkbox" aria-label="Ask where to save">
+              <span class="toggle-slider" aria-hidden="true"></span>
+            </div>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-content" id="features-tab" role="tabpanel" aria-label="Available features">
+      <div class="section">
+        <div class="section-header">
+          <svg class="section-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <h2 class="section-title">Available Features</h2>
+        </div>
+        <div class="features-grid" role="list"></div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <footer class="footer">
+      <div class="version-block">
+        <span class="version-label">Version</span>
+        <span class="version-num" id="version-text">--</span>
+      </div>
+      <div class="privacy-pill" aria-label="Privacy-first extension">
+        <svg class="privacy-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+        </svg>
+        <span class="privacy-text">Privacy First</span>
+      </div>
+    </footer>
   </div>
 
-  <div class="status">
-    <div class="status-dot" id="status-dot"></div>
-    <div class="status-text" id="status-text">Checking status...</div>
-  </div>
-
-  <div class="section-title">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-      <path
-        d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2z" />
+  <div class="saved-indicator" id="saved-indicator" role="alert" aria-live="polite">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
     </svg>
-    SHORTCUTS
+    <span>Saved</span>
   </div>
 
-  <div class="grid" id="shortcuts-grid">
-    <!-- Dynamically populated by popup.js -->
-  </div>
-
-  <div class="section-title">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-      <path
-        d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm5.49 11.11l-2.23 2.23c-.39.39-1.02.39-1.41 0-.39-.39-.39-1.02 0-1.41l.53-.53H8.22c-.55 0-1-.45-1-1s.45-1 1-1h6.16l-.53-.53c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0l2.23 2.23c.39.39.39 1.02 0 1.42z" />
-    </svg>
-    FEATURES
-  </div>
-
-  <div class="features">
-    <div class="feature">
-      <svg class="feature-icon" viewBox="0 0 24 24">
-        <path
-          d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm2-6h4c.55 0 1 .45 1 1v4c0 .55-.45 1-1 1h-4V9zm1.5 4.5h2v-3h-2v3z" />
-      </svg>
-      <span class="feature-text">HD Mode</span>
-    </div>
-    <div class="feature">
-      <svg class="feature-icon" viewBox="0 0 24 24">
-        <path
-          d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.06 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z" />
-      </svg>
-      <span class="feature-text">Smart Rotate</span>
-    </div>
-    <div class="feature">
-      <svg class="feature-icon" viewBox="0 0 24 24">
-        <path
-          d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM8 10h8v4H8z" />
-      </svg>
-      <span class="feature-text">Theater Mode</span>
-    </div>
-  </div>
-
-  <div class="footer">
-    <div class="version" id="version-text">Version</div>
-    <div class="badge">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
-      </svg>
-      Privacy First
-    </div>
-  </div>
-
+  <script src="shared-config.js"></script>
   <script src="popup.js"></script>
 </body>
 

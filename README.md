@@ -2,7 +2,7 @@
 
 > **A Natural Experience for Looking**
 
-A lightweight, privacy-friendly browser extension that enhances Instagram Reels viewing with smart rotation, aspect ratio controls, theater mode, and true fullscreen.
+A lightweight, privacy-friendly browser extension that enhances Instagram Reels viewing with smart rotation, aspect ratio controls, theater mode, true fullscreen, and smart media downloads.
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -14,6 +14,7 @@ A lightweight, privacy-friendly browser extension that enhances Instagram Reels 
 - **📐 Aspect Ratio Controls** - Choose from Original, 9:16, 16:9, 4:3, 1:1, Fit, Fill, or Stretch
 - **🎬 Theater Mode** - Cinematic viewing that dims UI while keeping scroll functionality
 - **⛶ True Fullscreen** - Browser-native fullscreen without Instagram's UI clutter
+- **⬇️ Smart Downloads** - Download reels, photos, and carousels with metadata-based filenames, optional carousel indexing, and save dialog support
 - **🔍 Smooth Zoom & Pan** - Zoom in/out with mouse wheel or buttons, pan to focus on content
 - **⌨️ Keyboard Shortcuts** - Full keyboard control for power users
 - **✨ SPA-Aware** - Automatically re-initializes when scrolling through reels
@@ -34,6 +35,7 @@ A lightweight, privacy-friendly browser extension that enhances Instagram Reels 
 | `Shift + Scroll` | Zoom with mouse wheel |
 | `Esc` | Reset all transforms |
 | `X` | Like / Unlike active Reel |
+| `.` | Download the active Reel/photo/carousel |
 
 ## 📐 Aspect Ratio Modes
 
@@ -80,7 +82,8 @@ A lightweight, privacy-friendly browser extension that enhances Instagram Reels 
 5. **Fullscreen (`F`)**: True browser fullscreen for immersive experience
 6. **Rotate (`R`/`L`)**: Perfect for landscape videos on portrait phones or vice versa
 7. **Aspect Ratio (`A`)**: Cycle through modes to find the best fit for your screen
-8. The control panel is draggable - position it wherever you like!
+8. Open the popup to customize download filename templates, carousel indexing, and save behavior
+9. The control panel is draggable - position it wherever you like!
 
 ## 🎬 View Modes Explained
 

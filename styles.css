@@ -1,83 +1,70 @@
 /**
- * ANGEL v3.5 - Enhanced Styles
- * Beautiful, minimal UI with smooth animations
- * 
- * Architecture: Overlay-based transforms (no DOM lifting)
+ * ANGEL v4.0 - Refined Compact Glassmorphic Design
+ * A polished, sleek control tower with improved UX and modern aesthetics.
  */
 
 /* ============================================
    CSS VARIABLES
    ============================================ */
-/* ============================================
-   CSS VARIABLES
-   ============================================ */
-/* ============================================
-   CSS VARIABLES
-   ============================================ */
 :root {
-  /* Core palette - Deep & Rich */
+  /* Core palette - Refined & Subtle */
   --ir-bg: rgba(18, 18, 24, 0.75);
   --ir-bg-hover: rgba(25, 25, 32, 0.85);
 
-  /* Glass Surface Layers */
-  --ir-surface: rgba(255, 255, 255, 0.04);
-  --ir-surface-hover: rgba(255, 255, 255, 0.08);
-  --ir-surface-active: rgba(255, 255, 255, 0.12);
-  --ir-surface-border: rgba(255, 255, 255, 0.06);
+  /* Premium Glass Surface */
+  --ir-surface: rgba(255, 255, 255, 0.06);
+  --ir-surface-hover: rgba(255, 255, 255, 0.1);
+  --ir-surface-active: rgba(255, 255, 255, 0.15);
+  --ir-surface-border: rgba(255, 255, 255, 0.08);
 
-  /* Brand colors - Neon Gradient */
+  /* Brand Accent - Vibrant Red */
   --ir-accent: #ff4757;
-  --ir-accent-gradient: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
-  --ir-accent-glow: rgba(255, 71, 87, 0.5);
+  --ir-accent-light: #ff6b81;
+  --ir-accent-glow: rgba(255, 71, 87, 0.45);
 
-  /* Text - Crisp & Readable */
+  /* Text Hierarchy */
   --ir-text: #ffffff;
-  --ir-text-secondary: rgba(255, 255, 255, 0.75);
-  --ir-text-muted: rgba(255, 255, 255, 0.5);
+  --ir-text-secondary: rgba(255, 255, 255, 0.8);
+  --ir-text-muted: rgba(255, 255, 255, 0.45);
 
-  /* Borders & Shadows - Depth Effects */
-  --ir-border-light: rgba(255, 255, 255, 0.1);
-  --ir-border-dark: rgba(0, 0, 0, 0.2);
-
-  /* 3D Glass Shadow */
+  /* Borders & Shadows - Layered Depth */
+  --ir-border: rgba(255, 255, 255, 0.08);
+  --ir-border-heavy: rgba(255, 255, 255, 0.12);
+  --ir-shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.35);
   --ir-shadow-panel:
-    0 24px 48px -12px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 20px 60px -15px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.06),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 
-  --ir-shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.1);
-  --ir-shadow-btn-active: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-
   /* Metrics */
-  --ir-radius-panel: 24px;
-  --ir-radius-element: 12px;
+  --ir-radius-panel: 20px;
+  --ir-radius-sm: 10px;
+  --ir-radius-xs: 6px;
   --ir-radius-full: 999px;
-  --ir-blur: blur(40px);
-  --ir-transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ir-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ir-blur: blur(50px) saturate(1.5);
+  --ir-transition-fast: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ir-transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ir-font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ============================================
-   BACKDROP (Dark overlay behind video)
+   BACKDROP (Theater Mode)
    ============================================ */
 .ir-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(5, 5, 8, 0.92);
+  inset: 0;
+  background: rgba(0, 0, 3, 0.94);
   z-index: 99998;
+  pointer-events: none;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.4s ease, visibility 0.4s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.35s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .ir-backdrop.active {
   opacity: 1;
-  visibility: visible;
+  pointer-events: auto;
 }
 
 /* ============================================
@@ -85,54 +72,48 @@
    ============================================ */
 .ir-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 
 .ir-overlay.active {
   opacity: 1;
-  visibility: visible;
   pointer-events: auto;
 }
 
-/* Video in overlay mode */
 .ir-overlay-video {
   position: fixed !important;
   top: 50% !important;
   left: 50% !important;
   z-index: 100000 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   max-width: none !important;
   max-height: none !important;
-  width: auto !important;
-  height: auto !important;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  pointer-events: auto !important;
+  transform: translate(-50%, -50%) scale(var(--ir-scale, 1)) rotate(var(--ir-rotation, 0deg));
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   object-fit: contain !important;
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
-  border-radius: 8px;
-  /* Slight rounding for elegance */
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
 }
 
-/* Video placeholder (maintains layout when video is moved) */
 .ir-video-placeholder {
   display: block;
   background: transparent;
   pointer-events: none;
 }
 
-/* Body class when overlay is active */
+/* body overflow is NOT locked in overlay mode — the full-screen backdrop already
+   hides the page beneath it, and locking overflow prevents window.scrollBy from
+   working which breaks reel-to-reel navigation entirely. */
 body.ir-overlay-active {
-  overflow: hidden !important;
+  /* overflow intentionally unrestricted */
 }
 
 /* ============================================
@@ -140,39 +121,40 @@ body.ir-overlay-active {
    ============================================ */
 #ir-exit-hint {
   position: fixed;
-  top: 32px;
+  top: 36px;
   left: 50%;
-  transform: translateX(-50%) translateY(-20px);
+  transform: translateX(-50%) translateY(-16px);
   z-index: 100002;
-  padding: 8px 24px;
-  background: rgba(30, 30, 35, 0.6);
+  padding: 10px 24px;
+  background: rgba(25, 25, 30, 0.65);
   color: var(--ir-text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 99px;
+  border: 1px solid var(--ir-border);
+  border-radius: var(--ir-radius-full);
   font-size: 13px;
   font-family: var(--ir-font-sans);
+  font-weight: 500;
   cursor: pointer;
   opacity: 0;
-  visibility: hidden;
+  pointer-events: none;
   transition: var(--ir-transition);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--ir-shadow-soft);
 }
 
 #ir-exit-hint.visible {
   opacity: 1;
-  visibility: visible;
+  pointer-events: auto;
   transform: translateX(-50%) translateY(0);
 }
 
 #ir-exit-hint kbd {
   background: rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 5px;
   font-family: inherit;
   font-weight: 600;
   font-size: 11px;
@@ -181,84 +163,125 @@ body.ir-overlay-active {
 }
 
 #ir-exit-hint:hover {
-  background: rgba(40, 40, 50, 0.8);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateX(-50%) translateY(2px);
+  background: rgba(35, 35, 45, 0.8);
+  border-color: var(--ir-border-heavy);
 }
 
 /* ============================================
-   CONTROL PANEL
+   CONTROL PANEL - REFINED COMPACT TOWER
    ============================================ */
 #angel-ctrl {
   position: fixed;
-  top: 32px;
-  right: 32px;
+  top: 28px;
+  right: 28px;
   z-index: 100010;
-  width: 300px;
-  /* Premium Glassmorphism */
-  background: linear-gradient(180deg,
-      rgba(20, 20, 28, 0.85) 0%,
-      rgba(10, 10, 16, 0.95) 100%);
-  backdrop-filter: blur(50px) saturate(1.8);
-  -webkit-backdrop-filter: blur(50px) saturate(1.8);
-  border-radius: var(--ir-radius-panel);
-  box-shadow:
-    0 40px 100px -20px rgba(0, 0, 0, 0.8),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-    inset 0 0 40px rgba(0, 0, 0, 0.4);
+  width: 260px;
   font-family: var(--ir-font-sans);
   color: var(--ir-text);
-  overflow: hidden;
-  transition:
-    transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-    visibility 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   user-select: none;
+  border-radius: var(--ir-radius-panel);
+  overflow: hidden;
+  
+  /* Premium Glassmorphism Background */
+  background: rgba(18, 18, 22, 0.55);
+  backdrop-filter: var(--ir-blur);
+  -webkit-backdrop-filter: var(--ir-blur);
+  box-shadow: var(--ir-shadow-panel);
   border: 1px solid rgba(255, 255, 255, 0.06);
+  
+  transition: 
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 #angel-ctrl:hover {
   box-shadow:
-    0 50px 120px -20px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 40px rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px);
+    var(--ir-shadow-panel),
+    0 0 40px -10px rgba(255, 71, 87, 0.08);
 }
 
-/* Auto-hide state */
+/* Auto-hide state - Slide off-screen smoothly */
 #angel-ctrl.auto-hide {
+  transform: translateX(calc(100% + 20px));
   opacity: 0;
-  transform: translateX(50px) scale(0.92);
-  visibility: hidden;
   pointer-events: none;
-  filter: blur(4px);
 }
 
-#angel-ctrl.auto-hide:hover {
-  opacity: 1;
-  transform: translateX(0) scale(1);
-  visibility: visible;
+/* Edge hover zone for revealing panel */
+.ir-edge-zone {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 60px;
+  height: 100vh;
+  z-index: 100008;
   pointer-events: auto;
-  filter: blur(0);
 }
 
-/* Minimized state */
+/* Reveal Button for auto-hide */
+.angel-reveal-btn {
+  position: fixed;
+  top: 28px;
+  right: 28px;
+  z-index: 100009;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(25, 25, 32, 0.85) 0%, rgba(18, 18, 24, 0.9) 100%);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  font-size: 18px;
+  color: var(--ir-accent);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.7) rotate(-10deg);
+  transition: 
+    opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.2s ease;
+}
+
+.angel-reveal-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1) rotate(0deg);
+}
+
+.angel-reveal-btn:hover {
+  transform: scale(1.15) rotate(5deg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 30px var(--ir-accent-glow);
+  background: linear-gradient(135deg, rgba(30, 30, 40, 0.95) 0%, rgba(22, 22, 30, 0.98) 100%);
+}
+
+.angel-reveal-btn:active {
+  transform: scale(0.95) rotate(0deg);
+}
+
+/* Minimized state - Small Circle */
 #angel-ctrl.minimized {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   cursor: pointer;
-  background: rgba(30, 30, 40, 0.9);
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Minimized takes priority over auto-hide */
+#angel-ctrl.minimized.auto-hide {
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 #angel-ctrl.minimized .ir-content {
   opacity: 0;
   pointer-events: none;
-  visibility: hidden;
+  position: absolute;
 }
 
 #angel-ctrl.minimized .ir-handle {
@@ -274,77 +297,16 @@ body.ir-overlay-active {
   display: none;
 }
 
-/* Floating Logo in minimized state */
+/* Logo in minimized state */
 #angel-ctrl.minimized::after {
   content: "✦";
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 24px;
+  font-size: 22px;
   color: var(--ir-accent);
-  text-shadow: 0 0 12px var(--ir-accent-glow);
-}
-
-/* ============================================
-   FLOATING REVEAL BUTTON
-   ============================================ */
-.angel-reveal-btn {
-  position: fixed;
-  top: 32px;
-  right: 32px;
-  z-index: 100009;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-
-  /* Glassmorphism style matching the panel */
-  background: linear-gradient(180deg,
-      rgba(30, 30, 40, 0.9) 0%,
-      rgba(20, 20, 28, 0.95) 100%);
-  backdrop-filter: blur(30px) saturate(1.5);
-  -webkit-backdrop-filter: blur(30px) saturate(1.5);
-  box-shadow:
-    0 8px 32px -8px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
-
-  /* Icon styling */
-  font-size: 20px;
-  color: var(--ir-accent);
-  text-shadow: 0 0 10px var(--ir-accent-glow);
-
-  /* Hidden by default */
-  opacity: 0;
-  visibility: hidden;
-  transform: scale(0.8) rotate(-90deg);
-  pointer-events: none;
-
-  /* Smooth transition */
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.angel-reveal-btn.visible {
-  opacity: 1;
-  visibility: visible;
-  transform: scale(1) rotate(0deg);
-  pointer-events: auto;
-}
-
-.angel-reveal-btn:hover {
-  transform: scale(1.1) rotate(15deg);
-  box-shadow:
-    0 12px 40px -6px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(255, 255, 255, 0.15),
-    0 0 20px var(--ir-accent-glow),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
-  color: #fff;
-}
-
-.angel-reveal-btn:active {
-  transform: scale(0.95) rotate(0deg);
+  text-shadow: 0 0 20px var(--ir-accent-glow);
 }
 
 /* ============================================
@@ -354,26 +316,11 @@ body.ir-overlay-active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background: linear-gradient(180deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.01) 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   cursor: grab;
   position: relative;
-}
-
-.ir-handle::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 20px;
-  right: 20px;
-  height: 1px;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.08) 50%,
-      transparent 100%);
 }
 
 .ir-handle:active {
@@ -387,66 +334,66 @@ body.ir-overlay-active {
 }
 
 .ir-logo-svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   fill: var(--ir-accent);
-  filter: drop-shadow(0 0 8px var(--ir-accent-glow));
+  filter: drop-shadow(0 0 10px var(--ir-accent-glow));
 }
 
 .ir-name {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0.7));
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.65) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .ir-handle-btns {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .ir-btn-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   background: transparent;
   color: var(--ir-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: var(--ir-transition);
+  transition: var(--ir-transition-fast);
   border: none;
   cursor: pointer;
 }
 
 .ir-btn-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   fill: currentColor;
 }
 
 .ir-btn-icon:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--ir-text);
 }
 
 /* ============================================
-   CONTENT
+   CONTENT WRAPPER
    ============================================ */
 .ir-content {
-  padding: 16px 20px 24px 20px;
+  padding: 14px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   max-height: calc(100vh - 140px);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
-/* Scrollbar */
 .ir-content::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 
 .ir-content::-webkit-scrollbar-track {
@@ -454,68 +401,83 @@ body.ir-overlay-active {
 }
 
 .ir-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
 }
 
 .ir-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
 }
 
+/* ============================================
+   GROUPS & SECTIONS
+   ============================================ */
 .ir-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ir-group-flat {
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 16px;
-  /* Inner shadow for "sunken" feel */
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
 .ir-group-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2px;
-  padding: 0 4px;
+  padding: 0 2px;
+  margin-bottom: 4px;
 }
 
 .ir-label {
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--ir-text-secondary);
-  opacity: 0.9;
+  color: var(--ir-text-muted);
 }
 
 .ir-label-small {
   font-size: 10px;
   font-weight: 600;
   color: var(--ir-text-muted);
-  width: 36px;
+  min-width: 32px;
 }
 
 /* ============================================
-   CONTROLS & BUTTONS
+   ROW & GRID LAYOUTS
    ============================================ */
 .ir-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* Base Button - Glassy & Tactile */
+.ir-row > * {
+  flex: 1;
+  min-width: 40px;
+}
+
+.ir-view-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+   BUTTONS - REFINED & TACTILE
+   ============================================ */
 .ir-btn {
   height: 38px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--ir-radius-sm);
   background: var(--ir-surface);
   color: var(--ir-text-secondary);
   cursor: pointer;
@@ -524,17 +486,20 @@ body.ir-overlay-active {
   align-items: center;
   justify-content: center;
   position: relative;
-  flex: 1;
-  /* Top highlight for 3D feel */
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
 }
 
 .ir-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   fill: currentColor;
-  opacity: 0.9;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  opacity: 0.92;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.ir-btn:has(.ir-key-badge) {
+  flex: 0 0 auto;
+  padding: 0 12px;
 }
 
 .ir-btn:hover {
@@ -545,26 +510,32 @@ body.ir-overlay-active {
 }
 
 .ir-btn:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.97);
   background: var(--ir-surface-active);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-/* Secondary Button (Darker) */
-.ir-btn-secondary {
+.ir-btn.secondary {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.ir-btn-secondary:hover {
+.ir-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+.ir-btn.active {
+  background: var(--ir-accent);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 15px var(--ir-accent-glow);
+}
+
 /* Ghost Button */
 .ir-btn-ghost {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   background: transparent;
   border: none;
   color: var(--ir-text-secondary);
@@ -572,66 +543,98 @@ body.ir-overlay-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: none;
+  border-radius: 8px;
+  transition: var(--ir-transition-fast);
 }
 
 .ir-btn-ghost:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
 }
 
 .ir-btn-ghost svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   fill: currentColor;
-  pointer-events: none;
 }
 
-.ir-btn-ghost span {
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Primary Play Button */
+/* Play Button */
 .ir-btn-play {
-  background: var(--ir-accent);
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
-  color: white;
+  height: 46px;
+  width: 60px;
   flex: 0 0 60px;
-  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 71, 87, 0.5);
+  background: var(--ir-accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255, 71, 87, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .ir-btn-play:hover {
-  background-color: #ff5e6c;
+  background: #ff5e6c;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  border-color: #ff6b81;
+  box-shadow: 0 6px 18px rgba(255, 71, 87, 0.45);
 }
 
-/* Active State */
-.ir-btn.active {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.05);
-}
-
+/* Mode Button */
 .ir-btn-mode {
-  height: 42px;
+  height: 40px;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ir-btn-mode.active {
   background: var(--ir-accent);
-  border-color: transparent;
   color: white;
-  box-shadow: 0 4px 15px var(--ir-accent-glow);
+  box-shadow: 0 4px 14px var(--ir-accent-glow);
+}
+
+/* Social Action Buttons */
+.ir-social-grid {
+  display: flex;
+  gap: 8px;
+}
+
+.ir-btn-social {
+  height: 38px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  flex: 1;
+}
+
+.ir-btn-like.active {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.15);
+  border-color: rgba(255, 71, 87, 0.4);
+  box-shadow: 0 0 12px rgba(255, 71, 87, 0.18);
+}
+
+.ir-btn-save.active {
+  color: #ffa502;
+  background: rgba(255, 165, 2, 0.15);
+  border-color: rgba(255, 165, 2, 0.4);
+  box-shadow: 0 0 12px rgba(255, 165, 2, 0.18);
+}
+
+.ir-btn-download:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Key Badge */
+.ir-key-badge {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  font-size: 7.5px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.2px;
+  pointer-events: none;
+  line-height: 1;
 }
 
 /* ============================================
@@ -640,18 +643,18 @@ body.ir-overlay-active {
 .ir-control-group {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
   padding: 3px;
   gap: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .ir-control-group .ir-btn {
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
-  width: 36px;
-  height: 32px;
+  width: 34px;
+  height: 30px;
   box-shadow: none;
   border: none;
 }
@@ -663,112 +666,80 @@ body.ir-overlay-active {
 .ir-control-group .ir-badge-box {
   background: transparent;
   border: none;
-  height: 32px;
-  padding: 0 12px;
-  font-size: 12px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
   font-weight: 600;
-  min-width: 44px;
+  min-width: 40px;
   color: var(--ir-text);
   font-variant-numeric: tabular-nums;
 }
 
 /* ============================================
-   GRIDS & LAYOUTS
+   ASPECT RATIO - PILL BUTTONS
    ============================================ */
-.ir-action-grid {
-  display: grid;
-  grid-template-columns: auto auto auto 1fr;
-  gap: 8px;
-  align-items: center;
-}
-
-.ir-aspect-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+.ir-aspect-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .ir-aspect-pill {
-  height: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
   background: rgba(255, 255, 255, 0.03);
   color: var(--ir-text-secondary);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: var(--ir-transition);
+  transition: var(--ir-transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .ir-aspect-pill:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.14);
   transform: translateY(-1px);
 }
 
 .ir-aspect-pill.active {
   background: #fff;
-  color: #000;
+  color: #111;
   font-weight: 700;
   border-color: #fff;
-  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
-}
-
-.ir-social-grid {
-  display: flex;
-  gap: 10px;
-}
-
-.ir-btn-social {
-  height: 40px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Specific states for Like/Save */
-.ir-btn-like.active {
-  color: #ff4757;
-  background: rgba(255, 71, 87, 0.15);
-  border-color: rgba(255, 71, 87, 0.4);
-  box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
-}
-
-.ir-btn-save.active {
-  color: #ffa502;
-  background: rgba(255, 165, 2, 0.15);
-  border-color: rgba(255, 165, 2, 0.4);
-  box-shadow: 0 0 15px rgba(255, 165, 2, 0.2);
+  box-shadow: 0 2px 6px rgba(255, 255, 255, 0.25);
 }
 
 /* ============================================
-   SLIDERS
+   SLIDERS - MODERN & SLEEK
    ============================================ */
 .ir-slider-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 6px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.02);
 }
 
 .ir-slider-wrapper {
   flex: 1;
   display: flex;
   align-items: center;
-  height: 24px;
+  height: 22px;
 }
 
 .ir-range {
   width: 100%;
-  height: 4px;
+  height: 3px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -781,14 +752,14 @@ body.ir-overlay-active {
   border-radius: 50%;
   background: #fff;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: var(--ir-transition-fast);
   box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   border: 2px solid transparent;
 }
 
 .ir-range:hover::-webkit-slider-thumb {
-  transform: scale(1.2);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  transform: scale(1.15);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
 .ir-range:active::-webkit-slider-thumb {
@@ -797,73 +768,159 @@ body.ir-overlay-active {
 }
 
 .ir-range-value {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--ir-text-secondary);
-  width: 34px;
+  min-width: 32px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  transition: var(--ir-transition);
 }
 
-/* Speed indicator highlight */
 .ir-range-value.speed-changed {
   color: var(--ir-accent);
 }
 
-/* Speed range custom thumb */
+/* Volume Slider */
+.ir-volume-range::-webkit-slider-thumb {
+  background: linear-gradient(135deg, #fff 0%, #e8e8e8 100%);
+}
+
+.ir-volume-range:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+
+/* Speed Slider */
 .ir-speed-range::-webkit-slider-thumb {
   background: var(--ir-accent);
 }
 
 .ir-speed-range:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 12px var(--ir-accent-glow);
+  box-shadow: 0 0 10px var(--ir-accent-glow);
+}
+
+/* Progress Bar */
+.ir-progress-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.ir-progress-container {
+  position: relative;
+  height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.ir-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ir-progress-buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 2px;
+  transition: width 0.25s ease;
+}
+
+.ir-progress-played {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--ir-accent) 0%, var(--ir-accent-light) 100%);
+  border-radius: 2px;
+  transition: width 0.08s ease;
+}
+
+.ir-progress-range {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 18px;
+  background: transparent !important;
+  z-index: 1;
+}
+
+.ir-progress-range::-webkit-slider-thumb {
+  background: #fff;
+  width: 15px;
+  height: 15px;
+  box-shadow: 0 0 6px rgba(255, 71, 87, 0.45);
+}
+
+.ir-progress-range:hover::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 0 10px rgba(255, 71, 87, 0.65);
+}
+
+.ir-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.ir-time-current {
+  color: var(--ir-text);
+}
+
+.ir-time-sep {
+  color: var(--ir-text-muted);
+}
+
+.ir-time-duration {
+  color: var(--ir-text-muted);
 }
 
 /* ============================================
-   BADGES & QUALITY
+   QUALITY BADGES
    ============================================ */
-.ir-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--ir-text-muted);
-  letter-spacing: 0.5px;
-}
-
 .ir-quality-badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 16px;
-  height: 38px;
-  font-size: 12px;
+  padding: 0 12px;
+  height: 36px;
+  font-size: 11px;
   font-weight: 700;
-  border-radius: 12px;
-  min-width: 70px;
-  border: 1px solid var(--ir-border-light);
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--ir-radius-sm);
+  min-width: 60px;
+  border: 1px solid var(--ir-border);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--ir-text-secondary);
-  transition: all 0.3s ease;
-  cursor: help;
-  position: relative;
-  overflow: hidden;
+  transition: var(--ir-transition);
 }
 
 .ir-quality-badge.quality-4k {
-  background: linear-gradient(135deg, rgba(142, 45, 226, 0.2) 0%, rgba(74, 0, 224, 0.2) 100%);
-  color: #d1b3ff;
-  border-color: rgba(138, 43, 226, 0.4);
-  box-shadow: 0 0 20px rgba(138, 43, 226, 0.15);
+  background: linear-gradient(135deg, rgba(142, 45, 226, 0.25) 0%, rgba(74, 0, 224, 0.25) 100%);
+  color: #d4b3ff;
+  border-color: rgba(138, 43, 226, 0.45);
+  box-shadow: 0 0 15px rgba(138, 43, 226, 0.15);
 }
 
 .ir-quality-badge.quality-hd {
-  background: linear-gradient(135deg, rgba(17, 153, 142, 0.2) 0%, rgba(56, 239, 125, 0.2) 100%);
+  background: linear-gradient(135deg, rgba(17, 153, 142, 0.25) 0%, rgba(56, 239, 125, 0.25) 100%);
   color: #a8ffc8;
-  border-color: rgba(56, 239, 125, 0.4);
-  box-shadow: 0 0 20px rgba(56, 239, 125, 0.15);
+  border-color: rgba(56, 239, 125, 0.45);
+  box-shadow: 0 0 15px rgba(56, 239, 125, 0.15);
 }
 
 .ir-quality-badge.loading {
@@ -878,76 +935,259 @@ body.ir-overlay-active {
   width: 100%;
   height: 2px;
   background: var(--ir-accent);
-  animation: quality-load 1s infinite linear;
+  animation: quality-load 1.2s infinite linear;
 }
 
 @keyframes quality-load {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(100%);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-transparent,
-rgba(255, 255, 255, 0.2),
-transparent);
-animation: quality-shimmer 1.5s infinite;
+.ir-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ir-text-muted);
+  letter-spacing: 0.4px;
 }
 
-@keyframes quality-pulse {
+.ir-btn-hd {
+  flex-shrink: 0;
+}
 
-  0%,
-  100% {
+.ir-btn-hd.active {
+  background: linear-gradient(135deg, rgba(17, 153, 142, 0.35) 0%, rgba(56, 239, 125, 0.35) 100%);
+  border-color: rgba(56, 239, 125, 0.55);
+  color: #a8ffc8;
+}
+
+.ir-btn-hd.active .ir-key-badge {
+  background: rgba(56, 239, 125, 0.3);
+  color: #a8ffc8;
+}
+
+/* ============================================
+   CUSTOM TOOLTIP
+   ============================================ */
+#ir-global-tooltip {
+  position: fixed;
+  z-index: 100100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  font-family: var(--ir-font-sans);
+}
+
+#ir-global-tooltip .ir-tooltip-content {
+  background: rgba(12, 12, 16, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #fff;
+  padding: 9px 15px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#ir-global-tooltip .ir-tooltip-text {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+#ir-global-tooltip .ir-tooltip-keys {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================
+   DOWNLOAD PROMPT DIALOG
+   ============================================ */
+.ir-download-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 100050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ir-dp-fade-in 0.2s ease;
+}
+
+.ir-dp-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.ir-dp-dialog {
+  position: relative;
+  width: 340px;
+  max-width: 90vw;
+  background: rgba(18, 18, 24, 0.98);
+  backdrop-filter: blur(50px) saturate(1.8);
+  -webkit-backdrop-filter: blur(50px) saturate(1.8);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  animation: ir-dp-slide-up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ir-dp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ir-dp-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ir-dp-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--ir-transition-fast);
+}
+
+.ir-dp-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.ir-dp-body {
+  padding: 20px 22px 24px;
+}
+
+.ir-dp-body p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.ir-dp-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ir-dp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: var(--ir-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--ir-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  transition: var(--ir-transition);
+}
+
+.ir-dp-btn kbd {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ir-dp-btn-primary {
+  background: linear-gradient(135deg, rgba(46, 213, 115, 0.2) 0%, rgba(46, 213, 115, 0.1) 100%);
+  border-color: rgba(46, 213, 115, 0.35);
+}
+
+.ir-dp-btn-primary:hover {
+  background: linear-gradient(135deg, rgba(46, 213, 115, 0.35) 0%, rgba(46, 213, 115, 0.2) 100%);
+  border-color: rgba(46, 213, 115, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(46, 213, 115, 0.2);
+}
+
+.ir-dp-btn-secondary {
+  background: linear-gradient(135deg, rgba(100, 140, 255, 0.15) 0%, rgba(100, 140, 255, 0.08) 100%);
+  border-color: rgba(100, 140, 255, 0.3);
+}
+
+.ir-dp-btn-secondary:hover {
+  background: linear-gradient(135deg, rgba(100, 140, 255, 0.28) 0%, rgba(100, 140, 255, 0.15) 100%);
+  border-color: rgba(100, 140, 255, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(100, 140, 255, 0.15);
+}
+
+@keyframes ir-dp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ir-dp-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
     opacity: 1;
-  }
-
-  50% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes quality-shimmer {
-  0% {
-    left: -100%;
-  }
-
-
-  100% {
-    left: 100%;
+    transform: translateY(0) scale(1);
   }
 }
 
 /* ============================================
-   TOAST
+   TOAST NOTIFICATION
    ============================================ */
 #angel-toast {
   position: fixed;
-  top: 80px;
+  top: 75px;
   left: 50%;
   transform: translate(-50%, 10px);
   z-index: 100020;
-  padding: 10px 20px;
-  background: rgba(20, 20, 25, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #ffffff !important;
-  /* Force white text */
+  padding: 12px 22px;
+  background: rgba(20, 20, 26, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--ir-radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff !important;
   font-family: var(--ir-font-sans);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 10px;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
 #angel-toast.visible {
@@ -956,14 +1196,13 @@ animation: quality-shimmer 1.5s infinite;
 }
 
 .ir-toast-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   fill: var(--ir-accent);
 }
 
-/* Base Video Styles preserved */
 video {
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 
 /* ============================================
@@ -972,79 +1211,33 @@ video {
 @media (max-width: 768px) {
   #angel-ctrl {
     top: auto;
-    bottom: 24px;
+    bottom: 20px;
     right: 50%;
     transform: translateX(50%);
-    width: 90vw;
-    max-width: 340px;
+    width: 92vw;
+    max-width: 300px;
   }
 
   #angel-ctrl.auto-hide {
-    transform: translateX(50%) translateY(20px);
-  }
-
-  #angel-ctrl:hover {
-    transform: translateX(50%) translateY(-2px);
+    transform: translateX(50%) translateY(15px);
   }
 }
 
-/* Animation utilities */
-@keyframes ir-spin {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
+/* ============================================
+   ANIMATIONS
+   ============================================ */
 @keyframes ir-pop {
-  0% {
-    transform: scale(0.9);
-  }
-
-  50% {
-    transform: scale(1.1);
-  }
-
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(0.94); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }
 
 .ir-pop-anim {
-  animation: ir-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: ir-pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-
-/* ============================================
-   AESTHETIC IMPROVEMENTS
-   ============================================ */
-
-/* Sleeker toggles and interactive elements */
-.ir-btn.active {
-  background: var(--ir-accent-gradient);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px var(--ir-accent-glow);
-}
-
-/* Hover effects */
-#angel-ctrl:hover {
-  transform: translateY(0);
-  box-shadow: var(--ir-shadow-panel), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
-}
-
-/* Scrollbar polish */
-.ir-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 99px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.ir-content::-webkit-scrollbar {
-  width: 6px;
+@keyframes ir-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================
@@ -1052,21 +1245,19 @@ video {
    ============================================ */
 #angel-loader {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.8);
+  inset: 0;
+  margin: auto;
   z-index: 100020;
-  background: rgba(20, 20, 30, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 24px 32px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  background: rgba(18, 18, 24, 0.95);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  padding: 24px 34px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1075,13 +1266,12 @@ video {
 
 #angel-loader.visible {
   opacity: 1;
-  visibility: visible;
-  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
 }
 
 .ir-loader-spinner {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 3px solid rgba(255, 255, 255, 0.1);
   border-top-color: var(--ir-accent);
   border-radius: 50%;
@@ -1092,231 +1282,166 @@ video {
   font-size: 13px;
   font-weight: 600;
   color: var(--ir-text-secondary);
-  font-family: var(--ir-font-sans);
   text-align: center;
 }
 
-@keyframes ir-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ============================================
-   HD LOADING STATUS (Simplified - no fake progress)
-   ============================================ */
 #angel-hd-progress {
   position: fixed;
-  top: 100px;
+  top: 95px;
   left: 50%;
-  transform: translateX(-50%) translateY(0);
+  transform: translateX(-50%);
   z-index: 100015;
-  /* Glassmorphism design */
-  background: rgba(15, 15, 20, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  padding: 14px 28px;
-  border-radius: 50px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(15, 15, 20, 0.88);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  padding: 12px 26px;
+  border-radius: var(--ir-radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  /* Force text color */
-  color: #ffffff !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  color: #fff !important;
 }
 
 #angel-hd-progress.visible {
   opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Maximum specificity to force white text on gradient */
-#angel-hd-progress .ir-hd-status-text,
-#angel-hd-progress div.ir-hd-status-text,
-div#angel-hd-progress .ir-hd-status-text {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  font-weight: 700;
-  font-size: 15px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  letter-spacing: 0.5px;
-  text-align: center;
-  white-space: nowrap;
 }
 
 .ir-hd-status-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #fff !important;
   text-align: center;
   white-space: nowrap;
-  letter-spacing: 0.5px;
 }
 
 /* ============================================
-   SMOOTH TRANSFORM ANIMATIONS
-   ============================================ */
-
-/* Enhanced video transitions */
-.ir-overlay-video {
-  transition: transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 350ms ease,
-    height 350ms ease,
-    opacity 300ms ease !important;
-}
-
-/* Backdrop fade animation */
-.ir-backdrop {
-  transition: opacity 400ms cubic-bezier(0.4, 0, 0.2, 1),
-    visibility 400ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Overlay fade animation */
-.ir-overlay {
-  transition: opacity 350ms cubic-bezier(0.4, 0, 0.2, 1),
-    visibility 350ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Smooth rotation animation */
-.ir-rotating {
-  animation: ir-rotate-smooth 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@keyframes ir-rotate-smooth {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(90deg);
-  }
-}
-
-/* Aspect ratio change animation */
-.ir-aspect-changing {
-  animation: ir-aspect-morph 350ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes ir-aspect-morph {
-  0% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.9;
-  }
-
-  100% {
-    opacity: 1;
-  }
-}
-
-/* Zoom animation */
-.ir-zooming {
-  animation: ir-zoom-pulse 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@keyframes ir-zoom-pulse {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.05);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* ============================================
-   SKELETON LOADER (Control Panel)
+   SKELETON LOADER
    ============================================ */
 #angel-ctrl-skeleton {
   position: fixed;
   top: 24px;
   right: 24px;
   z-index: 100010;
-  width: 280px;
-  height: 400px;
-  background: rgba(30, 31, 40, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 260px;
+  height: 380px;
+  background: rgba(25, 26, 35, 0.9);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
-  animation: ir-skeleton-fade-in 0.3s ease;
+  animation: ir-skeleton-fade-in 0.25s ease;
 }
 
 .ir-skeleton-header {
-  height: 60px;
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.03) 0%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.03) 100%);
+  height: 56px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.02) 100%);
   background-size: 200% 100%;
   animation: ir-skeleton-shimmer 1.5s infinite;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .ir-skeleton-content {
-  padding: 16px 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .ir-skeleton-row {
-  height: 40px;
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.03) 0%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.03) 100%);
+  height: 38px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.02) 100%);
   background-size: 200% 100%;
   animation: ir-skeleton-shimmer 1.5s infinite;
   border-radius: 10px;
 }
 
-.ir-skeleton-row:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.ir-skeleton-row:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
 @keyframes ir-skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes ir-skeleton-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Refined typography */
-.ir-label {
-  letter-spacing: 0.5px;
-  font-size: 10px;
-  color: var(--ir-text-muted);
+.ir-badge-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--ir-text);
+}
+
+.ir-social-grid {
+  display: flex;
+  gap: 8px;
+}
+
+.ir-btn-social {
+  height: 38px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ir-btn-download {
+  color: #ffffff;
+}
+
+.ir-btn-download:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.ir-btn-download:active {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(0.96);
+}
+
+#angel-hover-download-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.angel-inline-download-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: 6px;
+}
+
+.angel-inline-download-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.angel-inline-download-btn:hover {
+  background: transparent;
+  opacity: 0.65;
+  transform: none;
+}
+
+.angel-inline-download-btn:active {
+  transform: scale(0.96);
+  background: transparent;
+}
+
+.angel-inline-download-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  pointer-events: none;
 }

@@ -34,6 +34,8 @@ echo ""
 # Files and directories to include in the extension
 INCLUDE_FILES=(
     "manifest.json"
+    "background.js"
+    "shared-config.js"
     "content.js"
     "popup.html"
     "popup.js"

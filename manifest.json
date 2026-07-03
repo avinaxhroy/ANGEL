@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "ANGEL - Enhanced Instagram Reels",
-  "version": "3.6.2",
-  "description": "A Natural Experience for Looking. Rotation, zoom, theater mode, aspect ratios & fullscreen for Instagram Reels. Privacy-friendly.",
+  "version": "3.7.0",
+  "description": "A Natural Experience for Looking. Rotation, zoom, theater mode, aspect ratios, download (reels, photos, carousels) & fullscreen for Instagram Reels. Privacy-friendly.",
   "permissions": [
-    "tabs"
+    "activeTab",
+    "storage",
+    "downloads",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://www.instagram.com/*"
@@ -15,6 +18,7 @@
         "https://www.instagram.com/*"
       ],
       "js": [
+        "shared-config.js",
         "content.js"
       ],
       "css": [
@@ -23,6 +27,9 @@
       "run_at": "document_idle"
     }
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

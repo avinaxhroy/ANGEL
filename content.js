@@ -54,7 +54,7 @@
   // CONFIGURATION
   // ============================================
   const CONFIG = {
-    VERSION: '3.0.0',
+    VERSION: '3.6.2',
 
     ASPECT_RATIOS: {
       'original': { label: 'Original', icon: '○', value: null, type: 'geometry' },
@@ -67,20 +67,8 @@
       'stretch': { label: 'Stretch', icon: '↔', value: 'stretch', type: 'mode' }
     },
 
-    KEYBOARD: {
-      ROTATE_CW: 'r',
-      ROTATE_CCW: 'l',
-      FULLSCREEN: 'f',
-      THEATER: 't',
-      RESET: 'escape',
-      ZOOM_IN: '=',
-      ZOOM_OUT: '-',
-      ASPECT_CYCLE: 'a',
-      HD_TOGGLE: 'h',
-      SPEED_SLOW: '[',
-      SPEED_FAST: ']',
-      SAVE: 's'
-    },
+    // Keyboard shortcuts — single source of truth is shared-config.js
+    KEYBOARD: ANGEL_KEYBOARD,
 
     ZOOM: {
       MIN: 0.5,
@@ -95,6 +83,11 @@
       DEFAULT: 1.0,
       HOLD_SLOW: 0.5,
       HOLD_FAST: 2.0
+    },
+
+    DOWNLOAD: {
+      DEFAULT_TEMPLATE: ANGEL_DOWNLOAD_SETTINGS?.DEFAULT_TEMPLATE || 'angel_{username}_{shortcode}_{type}_{quality}{index}',
+      MAX_FILENAME_LENGTH: 180
     },
 
     UI_HIDE_DELAY: 3000,
@@ -140,9 +133,27 @@
       SAVE: '<svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z"/></svg>',
       SAVE_ACTIVE: '<svg viewBox="0 0 24 24" fill="#ffa502"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>',
       MINIMIZE: '<svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>',
-      RESET: '<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>'
+      RESET: '<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>',
+      DOWNLOAD: '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
     }
   };
+
+  const MEDIA_SURFACES = {
+    STORY: 'story',
+    HIGHLIGHT: 'highlight',
+    REEL: 'reel',
+    POST: 'post',
+    TV: 'tv',
+    MEDIA: 'media'
+  };
+
+  const ACTION_LABEL_PATTERNS = Object.freeze({
+    like: [/^like$/i, /^unlike$/i, /^gefällt mir$/i, /^me gusta$/i, /^j'aime$/i, /^mi piace$/i],
+    save: [/^save$/i, /^remove$/i, /^unsave$/i, /^guardar$/i, /^enregistrer$/i, /^speichern$/i, /^salva$/i],
+    comment: [/^comment$/i, /^view comments$/i, /^comentar$/i, /^commenter$/i, /^kommentieren$/i],
+    share: [/^share$/i, /^send$/i, /^share post$/i, /^compartir$/i, /^partager$/i, /^teilen$/i, /^condividi$/i],
+    menu: [/^more options$/i, /^options$/i, /^more$/i, /^menu$/i, /^story options$/i]
+  });
 
   // ============================================
   // GLOBAL STATE
@@ -167,6 +178,9 @@
     playbackSpeed: 1.0, // User's playback speed preference (persists across reels)
     isHoldingSpeedKey: false, // True when holding [ or ] for temporary speed change
     previousSpeed: 1.0, // Speed to return to when releasing hold key
+    downloadFilenameTemplate: CONFIG.DOWNLOAD.DEFAULT_TEMPLATE,
+    downloadCarouselIndex: true,
+    downloadSaveAs: false,
 
     // Current video reference
     currentVideo: null,
@@ -176,6 +190,12 @@
       height: window.innerHeight
     },
 
+    // CSS-rendered video size captured at overlay activation (before any transform).
+    // Used as the scale divisor so zoom is resolution-independent (same result for
+    // 1080p, 1440p, 4K source videos).
+    videoNaturalW: 0,
+    videoNaturalH: 0,
+
     // Cached elements
     backdrop: null,
     overlay: null,
@@ -184,6 +204,7 @@
     // Timers
     hideTimer: null,
     scrollNavTimeout: null,
+    reelNavigationInProgress: false,
 
     // Observers
     mutationObserver: null,
@@ -193,11 +214,14 @@
     // HD Video settings
     hdMode: true, // HD mode enabled by default
     hdVideoMap: new Map(), // Maps video URL keys to HD URLs
+    hdVideoList: [], // Recent HD URLs emitted by the page-context interceptor
     currentVideoQuality: null, // { width, height } of current video
     hdAppliedToCurrentVideo: false, // Whether HD was applied to current video
     hdLoading: false, // Whether HD is currently loading
     preferredQuality: 'auto', // User's quality preference: 'auto', '720p', '1080p', '1440p', '4K'
     pendingHDRequests: new Map(), // v4: Track in-flight HD requests for deduplication
+    hdRestorePausedUntil: 0, // Temporarily pause HD source swaps during native IG interactions
+    hdInteractionEpoch: 0, // Invalidates delayed HD retries when Instagram is settling
 
     // Loading states
     isTransitioning: false, // True during mode transitions
@@ -211,6 +235,20 @@
       hdAttempts: 0,
       hdSuccesses: 0,
       lastDetectionTime: 0
+    },
+
+    activeVideoCache: {
+      video: null,
+      at: 0,
+      path: '',
+      width: 0,
+      height: 0
+    },
+
+    inlineDownloadSyncCache: {
+      signature: '',
+      at: 0,
+      mount: null
     },
 
     // Reset transforms only (preserves audio preferences and playback speed)
@@ -235,6 +273,128 @@
       this.isHoldingSpeedKey = false;
       this.previousSpeed = 1.0;
     }
+  };
+
+  // ============================================
+  // SETTINGS PERSISTENCE (chrome.storage.local)
+  // ============================================
+  const Settings = {
+    isWatching: false,
+
+    KEYS: {
+      HD_MODE:        'angel_hdMode',
+      ASPECT_RATIO:   'angel_aspectRatio',
+      PLAYBACK_SPEED: 'angel_playbackSpeed',
+      MUTED:          'angel_muted',
+      VOLUME:         'angel_volume',
+      DOWNLOAD_TEMPLATE: ANGEL_DOWNLOAD_SETTINGS?.STORAGE_KEYS?.TEMPLATE || 'angel_downloadTemplate',
+      DOWNLOAD_CAROUSEL_INDEX: ANGEL_DOWNLOAD_SETTINGS?.STORAGE_KEYS?.CAROUSEL_INDEX || 'angel_downloadCarouselIndex',
+      DOWNLOAD_SAVE_AS: ANGEL_DOWNLOAD_SETTINGS?.STORAGE_KEYS?.SAVE_AS || 'angel_downloadSaveAs',
+      PANEL_LEFT:     'angel_panelLeft',
+      PANEL_TOP:      'angel_panelTop',
+    },
+
+    /** Load persisted settings into GlobalState and restore panel position. */
+    load() {
+      if (!chrome?.storage?.local) return;
+
+      if (!this.isWatching && chrome.storage?.onChanged) {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+          if (areaName !== 'local') return;
+
+          if (changes[this.KEYS.DOWNLOAD_TEMPLATE]) {
+            const value = changes[this.KEYS.DOWNLOAD_TEMPLATE].newValue;
+            GlobalState.downloadFilenameTemplate = typeof value === 'string' && value.trim()
+              ? value.trim()
+              : CONFIG.DOWNLOAD.DEFAULT_TEMPLATE;
+          }
+          if (changes[this.KEYS.DOWNLOAD_CAROUSEL_INDEX]) {
+            GlobalState.downloadCarouselIndex = !!changes[this.KEYS.DOWNLOAD_CAROUSEL_INDEX].newValue;
+          }
+          if (changes[this.KEYS.DOWNLOAD_SAVE_AS]) {
+            GlobalState.downloadSaveAs = !!changes[this.KEYS.DOWNLOAD_SAVE_AS].newValue;
+          }
+        });
+        this.isWatching = true;
+      }
+
+      const keys = Object.values(this.KEYS);
+      chrome.storage.local.get(keys, (items) => {
+        if (chrome.runtime.lastError) return;
+
+        if (items[this.KEYS.HD_MODE] !== undefined) {
+          GlobalState.hdMode = !!items[this.KEYS.HD_MODE];
+        }
+        if (items[this.KEYS.ASPECT_RATIO] && CONFIG.ASPECT_RATIOS[items[this.KEYS.ASPECT_RATIO]]) {
+          GlobalState.aspectRatio = items[this.KEYS.ASPECT_RATIO];
+        }
+        if (typeof items[this.KEYS.PLAYBACK_SPEED] === 'number') {
+          const spd = items[this.KEYS.PLAYBACK_SPEED];
+          if (spd >= CONFIG.PLAYBACK_SPEED.MIN && spd <= CONFIG.PLAYBACK_SPEED.MAX) {
+            GlobalState.playbackSpeed = spd;
+          }
+        }
+        if (items[this.KEYS.MUTED] !== undefined) {
+          GlobalState.userMuted = !!items[this.KEYS.MUTED];
+        }
+        if (typeof items[this.KEYS.VOLUME] === 'number') {
+          GlobalState.userVolume = Math.min(1, Math.max(0, items[this.KEYS.VOLUME]));
+        }
+        if (typeof items[this.KEYS.DOWNLOAD_TEMPLATE] === 'string' && items[this.KEYS.DOWNLOAD_TEMPLATE].trim()) {
+          GlobalState.downloadFilenameTemplate = items[this.KEYS.DOWNLOAD_TEMPLATE].trim();
+        }
+        if (items[this.KEYS.DOWNLOAD_CAROUSEL_INDEX] !== undefined) {
+          GlobalState.downloadCarouselIndex = !!items[this.KEYS.DOWNLOAD_CAROUSEL_INDEX];
+        }
+        if (items[this.KEYS.DOWNLOAD_SAVE_AS] !== undefined) {
+          GlobalState.downloadSaveAs = !!items[this.KEYS.DOWNLOAD_SAVE_AS];
+        }
+
+        // Restore panel position after the panel has been created
+        const left = items[this.KEYS.PANEL_LEFT];
+        const top  = items[this.KEYS.PANEL_TOP];
+        if (typeof left === 'number' && typeof top === 'number') {
+          const apply = () => {
+            const panel = document.getElementById(CONFIG.SELECTORS.CONTROL_PANEL);
+            if (panel) {
+              panel.style.left   = `${left}px`;
+              panel.style.top    = `${top}px`;
+              panel.style.right  = 'auto';
+              panel.style.bottom = 'auto';
+              clampToViewport(panel);
+            }
+          };
+          // Try immediately, then retry in case the panel isn't created yet
+          apply();
+          setTimeout(apply, 1200);
+        }
+
+        updateControlPanel();
+      });
+    },
+
+    /** Persist a single key/value pair. */
+    save(key, value) {
+      if (!chrome?.storage?.local) return;
+      chrome.storage.local.set({ [key]: value }, () => {
+        if (chrome.runtime.lastError) {
+          log('Settings save error:', chrome.runtime.lastError.message);
+        }
+      });
+    },
+
+    saveHDMode()        { this.save(this.KEYS.HD_MODE,        GlobalState.hdMode); },
+    saveAspectRatio()   { this.save(this.KEYS.ASPECT_RATIO,   GlobalState.aspectRatio); },
+    savePlaybackSpeed() { this.save(this.KEYS.PLAYBACK_SPEED, GlobalState.playbackSpeed); },
+    saveMuted()         { this.save(this.KEYS.MUTED,          GlobalState.userMuted); },
+    saveVolume()        { this.save(this.KEYS.VOLUME,         GlobalState.userVolume); },
+    saveDownloadTemplate() { this.save(this.KEYS.DOWNLOAD_TEMPLATE, GlobalState.downloadFilenameTemplate); },
+    saveDownloadCarouselIndex() { this.save(this.KEYS.DOWNLOAD_CAROUSEL_INDEX, GlobalState.downloadCarouselIndex); },
+    saveDownloadSaveAs() { this.save(this.KEYS.DOWNLOAD_SAVE_AS, GlobalState.downloadSaveAs); },
+    savePanelPosition(left, top) {
+      this.save(this.KEYS.PANEL_LEFT, left);
+      this.save(this.KEYS.PANEL_TOP,  top);
+    },
   };
 
   // ============================================
@@ -272,7 +432,53 @@
   }
 
   function isReelsPage() {
-    return /instagram\.com\/(reels|reel)/.test(window.location.href);
+    // Matches /reel/, /reels/, /p/ (feed posts with video), /tv/ (IGTV)
+    // /stories/ deliberately excluded — ephemeral content with different DOM
+    return /instagram\.com\/(reels?|p|tv)\b/.test(window.location.href);
+  }
+
+  function isStoryPage() {
+    return /^\/stories\/(?!highlights\/)[^/]+/.test(window.location.pathname);
+  }
+
+  function isHighlightPage() {
+    return /^\/stories\/highlights\/[^/]+/.test(window.location.pathname);
+  }
+
+  function getPathMediaIdentifier() {
+    const path = window.location.pathname;
+    const mediaMatch = path.match(/\/(?:reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
+    if (mediaMatch?.[1]) return mediaMatch[1];
+
+    const highlightMatch = path.match(/^\/stories\/highlights\/([^/]+)/);
+    if (highlightMatch?.[1]) {
+      return `highlight_${sanitizeFilenameSegment(highlightMatch[1]) || highlightMatch[1]}`;
+    }
+
+    const storyMatch = path.match(/^\/stories\/(?!highlights\/)([^/]+)(?:\/([^/]+))?/);
+    if (storyMatch) {
+      const storyId = sanitizeFilenameSegment(storyMatch[2] || storyMatch[1]);
+      return storyId ? `story_${storyId}` : null;
+    }
+
+    return null;
+  }
+
+  function getMediaSurface(container = null) {
+    const path = window.location.pathname;
+
+    if (isHighlightPage()) return MEDIA_SURFACES.HIGHLIGHT;
+    if (isStoryPage()) return MEDIA_SURFACES.STORY;
+    if (/^\/(?:reel|reels)\//.test(path)) return MEDIA_SURFACES.REEL;
+    if (/^\/p\//.test(path)) return MEDIA_SURFACES.POST;
+    if (/^\/tv\//.test(path)) return MEDIA_SURFACES.TV;
+
+    const href = container?.querySelector('a[href*="/p/"], a[href*="/reel/"], a[href*="/reels/"], a[href*="/tv/"]')?.getAttribute('href') || '';
+    if (/\/(?:reel|reels)\//.test(href)) return MEDIA_SURFACES.REEL;
+    if (/\/p\//.test(href)) return MEDIA_SURFACES.POST;
+    if (/\/tv\//.test(href)) return MEDIA_SURFACES.TV;
+
+    return MEDIA_SURFACES.MEDIA;
   }
 
   function log(...args) {
@@ -320,14 +526,6 @@
     }
   }
 
-  function showHDProgress(isLoading) {
-    // HD notification removed - bad UX per user feedback
-    // The HD loading state is still tracked via GlobalState.hdLoading
-    // and the quality badge in the Control Panel is updated accordingly.
-    // This function is now a no-op to maintain API compatibility.
-    return;
-  }
-
   // ============================================
   // TOAST NOTIFICATIONS
   // ============================================
@@ -352,9 +550,10 @@
         }
       }
 
-      // Sanitize message to prevent XSS
+      // Sanitize both message and icon to prevent XSS
       const safeMessage = String(message).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      toast.innerHTML = icon ? `<span class="ir-toast-icon">${icon}</span>${safeMessage}` : safeMessage;
+      const safeIcon = String(icon).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      toast.innerHTML = safeIcon ? `<span class="ir-toast-icon">${safeIcon}</span>${safeMessage}` : safeMessage;
       toast.classList.add('visible');
 
       clearTimeout(toast._hideTimer);
@@ -374,8 +573,19 @@
   // VIDEO DETECTION
   // ============================================
 
-  function findActiveVideo() {
+  function findActiveVideo(force = false) {
     try {
+      const cache = GlobalState.activeVideoCache;
+      if (!force &&
+        cache.video &&
+        cache.video.isConnected &&
+        cache.path === window.location.pathname &&
+        cache.width === window.innerWidth &&
+        cache.height === window.innerHeight &&
+        Date.now() - cache.at < 150) {
+        return cache.video;
+      }
+
       // Multiple selector strategies for resilience
       const selectors = [
         'video',
@@ -394,7 +604,10 @@
         }
       }
 
-      if (videos.length === 0) return null;
+      if (videos.length === 0) {
+        GlobalState.activeVideoCache = { video: null, at: Date.now(), path: window.location.pathname, width: window.innerWidth, height: window.innerHeight };
+        return null;
+      }
 
       // Filter to only visible videos with reasonable size
       const validVideos = videos.filter(v => {
@@ -407,7 +620,10 @@
         }
       });
 
-      if (validVideos.length === 0) return null;
+      if (validVideos.length === 0) {
+        GlobalState.activeVideoCache = { video: null, at: Date.now(), path: window.location.pathname, width: window.innerWidth, height: window.innerHeight };
+        return null;
+      }
 
       // Find the video closest to viewport center
       const viewportCenterY = window.innerHeight / 2;
@@ -435,6 +651,13 @@
         }
       }
 
+      GlobalState.activeVideoCache = {
+        video: bestVideo,
+        at: Date.now(),
+        path: window.location.pathname,
+        width: window.innerWidth,
+        height: window.innerHeight
+      };
       return bestVideo;
     } catch (e) {
       log('Error in findActiveVideo:', e);
@@ -442,9 +665,52 @@
     }
   }
 
-  function getScrollContainer() {
+  function findActiveImage(root = document) {
     try {
-      // Multiple selector strategies for resilience
+      const images = Array.from(root.querySelectorAll('img')).filter(isLikelyMediaImage);
+      if (images.length === 0) return null;
+
+      const viewportCenterX = window.innerWidth / 2;
+      const viewportCenterY = window.innerHeight / 2;
+      let bestImage = null;
+      let bestScore = -Infinity;
+
+      for (const img of images) {
+        try {
+          const rect = img.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const distance = Math.hypot(centerX - viewportCenterX, centerY - viewportCenterY);
+
+          let score = rect.width * rect.height - distance * 120;
+          if (rect.height >= window.innerHeight * 0.45) score += 50000;
+          if (rect.width >= window.innerWidth * 0.45) score += 25000;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestImage = img;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return bestImage;
+    } catch (e) {
+      log('Error in findActiveImage:', e);
+      return null;
+    }
+  }
+
+  function getScrollContainer() {
+    // Cache the result — re-discover only when the cached element leaves the DOM
+    // or the page URL changes (SPA navigation).
+    const cache = getScrollContainer._cache;
+    if (cache && cache.el && cache.el.isConnected && cache.path === window.location.pathname) {
+      return cache.el;
+    }
+
+    try {
       const selectors = [
         'main[role="main"]',
         'main',
@@ -458,21 +724,21 @@
           const mainEl = document.querySelector(selector);
           if (!mainEl) continue;
 
-          // Check if main itself scrolls or find a scrollable child
           let el = mainEl;
           for (let i = 0; i < 10 && el; i++) {
             const style = window.getComputedStyle(el);
             if ((style.overflowY === 'scroll' || style.overflowY === 'auto') &&
               el.scrollHeight > el.clientHeight) {
               log('Found scroll container:', selector);
+              getScrollContainer._cache = { el, path: window.location.pathname };
               return el;
             }
-            // Check children
             for (const child of el.children) {
               const childStyle = window.getComputedStyle(child);
               if ((childStyle.overflowY === 'scroll' || childStyle.overflowY === 'auto') &&
                 child.scrollHeight > child.clientHeight) {
                 log('Found scroll container in children:', selector);
+                getScrollContainer._cache = { el: child, path: window.location.pathname };
                 return child;
               }
             }
@@ -486,10 +752,11 @@
       log('Error in getScrollContainer:', e);
     }
 
-    // Fallback to document root
     log('Using fallback scroll container: documentElement');
+    getScrollContainer._cache = { el: document.documentElement, path: window.location.pathname };
     return document.documentElement;
   }
+  getScrollContainer._cache = null;
 
   // ============================================
   // OVERLAY MANAGEMENT
@@ -580,12 +847,19 @@
     video._ir_originalParent = video.parentElement;
     video._ir_originalSibling = video.nextSibling;
 
+    // Capture the CSS-rendered size NOW (before we move the element or change
+    // any styles) so calculateTransforms can use it as the scale divisor.
+    // This makes scaling resolution-independent: the same visual size is produced
+    // whether the source is 1080p, 1440p, or 4K.
+    GlobalState.videoNaturalW = video.offsetWidth || 390;
+    GlobalState.videoNaturalH = video.offsetHeight || 694;
+
     // Create placeholder to maintain DOM structure
     const placeholder = document.createElement('div');
     placeholder.className = 'ir-video-placeholder';
     placeholder.style.cssText = `
-      width: ${video.offsetWidth}px;
-      height: ${video.offsetHeight}px;
+      width: ${GlobalState.videoNaturalW}px;
+      height: ${GlobalState.videoNaturalH}px;
       display: block;
     `;
     video._ir_placeholder = placeholder;
@@ -595,12 +869,30 @@
     overlay.appendChild(video);
     video.classList.add('ir-overlay-video');
 
-    // Show backdrop and overlay
+    // Set isOverlayActive = true BEFORE calculateTransforms so the scaling
+    // branch inside it is used — otherwise scale stays at 1 and the video
+    // flashes at natural/tiny size during the overlay fade-in.
+    GlobalState.isOverlayActive = true;
+
+    // Pre-apply transforms immediately (no transition) so the video is already
+    // in the correct full-screen position/size when the overlay fades in.
+    // We must use setProperty with 'important' to override the !important CSS transition.
+    const initialTransforms = calculateTransforms(video);
+    video.style.setProperty('transition', 'none', 'important');
+    video.style.transform = initialTransforms.transform;
+    video.style.transformOrigin = 'center center';
+    video.style.width = initialTransforms.width;
+    video.style.height = initialTransforms.height;
+    video.style.objectFit = initialTransforms.objectFit;
+    // Force reflow to commit the no-transition state before showing overlay
+    void video.offsetHeight;
+    // Re-enable transitions for subsequent interactive changes
+    video.style.removeProperty('transition');
+
+    // Show backdrop and overlay — video is already at correct dimensions
     backdrop.classList.add('active');
     overlay.classList.add('active');
     document.body.classList.add('ir-overlay-active');
-
-    GlobalState.isOverlayActive = true;
 
     // Ensure video keeps playing after moving to overlay
     // Moving video to a different DOM container can stop playback
@@ -627,9 +919,10 @@
     showExitHint();
   }
 
-  function deactivateOverlay() {
+  function deactivateOverlay(options = {}) {
     if (!GlobalState.isOverlayActive) return;
 
+    const { resumePlayback = true } = options;
     const video = GlobalState.currentVideo;
     log('Deactivating overlay mode');
 
@@ -686,8 +979,8 @@
       }
       delete video._ir_originalStyles;
 
-      // Ensure video keeps playing
-      if (video.paused) {
+      // Ensure video keeps playing unless this is a reel-navigation handoff.
+      if (resumePlayback && video.paused) {
         video.play().catch(() => { });
       }
     }
@@ -752,8 +1045,12 @@
     // Keep overlay active as long as enhancedModeActive is true
     const needsOverlay = GlobalState.enhancedModeActive;
 
+    // Track whether overlay was just activated so we can skip the redundant animated
+    // re-apply below (activateOverlay already snapped the video to correct position).
+    const justActivated = needsOverlay && !GlobalState.isOverlayActive;
+
     // Manage overlay state
-    if (needsOverlay && !GlobalState.isOverlayActive) {
+    if (justActivated) {
       activateOverlay();
     } else if (!needsOverlay && GlobalState.isOverlayActive) {
       deactivateOverlay();
@@ -762,12 +1059,16 @@
     // Calculate transforms
     const transforms = calculateTransforms(video);
 
-    // Apply smooth CSS transitions
-    const duration = CONFIG.ANIMATIONS.TRANSFORM_DURATION;
-    video.style.transition = `transform ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1), 
-                              width ${CONFIG.ANIMATIONS.ASPECT_DURATION}ms ease, 
-                              height ${CONFIG.ANIMATIONS.ASPECT_DURATION}ms ease, 
-                              opacity ${CONFIG.ANIMATIONS.FADE_DURATION}ms ease`;
+    // Apply smooth CSS transitions — but skip animation when overlay was just activated
+    // because activateOverlay() already pre-applied the correct transform instantly.
+    if (!justActivated) {
+      const duration = CONFIG.ANIMATIONS.TRANSFORM_DURATION;
+      video.style.setProperty(
+        'transition',
+        `transform ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity ${CONFIG.ANIMATIONS.FADE_DURATION}ms ease`,
+        'important'
+      );
+    }
 
     // Apply to video
     video.style.transform = transforms.transform;
@@ -775,129 +1076,119 @@
     video.style.width = transforms.width;
     video.style.height = transforms.height;
     video.style.objectFit = transforms.objectFit;
+
+    if (GlobalState.isOverlayActive) {
+      video.style.minWidth = '0px';
+      video.style.minHeight = '0px';
+      video.style.maxWidth = 'none';
+      video.style.maxHeight = 'none';
+    }
+  }
+
+  function fitBoxWithin(maxW, maxH, aspectRatio) {
+    const safeAspect = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : (9 / 16);
+    const safeMaxW = Math.max(1, maxW || 1);
+    const safeMaxH = Math.max(1, maxH || 1);
+
+    let width = safeMaxW;
+    let height = width / safeAspect;
+
+    if (height > safeMaxH) {
+      height = safeMaxH;
+      width = height * safeAspect;
+    }
+
+    return { width, height };
+  }
+
+  function calculateDomSizeForVisualFit(maxVisualW, maxVisualH, domAspect, isRotated90) {
+    const visualAspect = isRotated90 ? (1 / domAspect) : domAspect;
+    const visual = fitBoxWithin(maxVisualW, maxVisualH, visualAspect);
+
+    return isRotated90
+      ? { domW: visual.height, domH: visual.width }
+      : { domW: visual.width, domH: visual.height };
   }
 
   function calculateTransforms(video) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    const vh = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
 
-    // Get actual video dimensions (for aspect ratio calculation)
-    const videoW = video.videoWidth || video.offsetWidth || 360;
-    const videoH = video.videoHeight || video.offsetHeight || 640;
-    const videoAspect = videoW / videoH;
+    // In overlay mode: set EXPLICIT pixel dimensions so the displayed size is
+    // completely independent of source resolution (720p / 1080p / 1440p / 4K).
+    // scale() is only used for user-driven zoom, never for sizing.
+    // In non-overlay mode: no transforms needed.
+    if (!GlobalState.isOverlayActive) {
+      return { transform: '', width: 'auto', height: 'auto', objectFit: 'contain' };
+    }
 
-    const transformParts = [];
-    let width = 'auto';
-    let height = 'auto';
+    const isRotated90 = GlobalState.rotation === 90 || GlobalState.rotation === 270;
+    const aspectConfig = CONFIG.ASPECT_RATIOS[GlobalState.aspectRatio];
+    let domW, domH;
     let objectFit = 'contain';
 
-    // Rotation check - if 90° or 270°, we need to swap effective dimensions
-    const isRotated90 = GlobalState.rotation === 90 || GlobalState.rotation === 270;
-    const effectiveVw = isRotated90 ? vh : vw;
-    const effectiveVh = isRotated90 ? vw : vh;
+    // When rotated 90°/270° the DOM width/height axes are visually swapped:
+    //   visual width  = DOM height
+    //   visual height = DOM width
+    // So we solve for DOM dimensions by working in visual space first, then swap.
 
-    // Determine base scale based on aspect ratio mode
-    let scaleX = 1;
-    let scaleY = 1;
-    const aspectConfig = CONFIG.ASPECT_RATIOS[GlobalState.aspectRatio];
-
-    if (GlobalState.isOverlayActive) {
-      // TARGET-BASED SCALING (resolution-independent)
-      // Calculate target display size based on screen, not source resolution
-      // This ensures consistent display size regardless of 720p/1080p/1440p source
-
-      switch (aspectConfig.value) {
-        case 'fit':
-        case null: // 'original' in overlay = fit to screen
-          {
-            // Use FIXED 9:16 aspect ratio for Instagram Reels (resolution-independent)
-            // This ensures consistent display size regardless of initial vs HD dimensions
-            const REEL_ASPECT = 9 / 16; // 0.5625 - standard vertical video aspect ratio
-
-            // Target: fit to 92% of screen using fixed aspect ratio
-            const targetH = effectiveVh * 0.92;
-            const targetW = targetH * REEL_ASPECT;
-
-            // If target width exceeds screen width, constrain by width instead
-            if (targetW > effectiveVw * 0.92) {
-              const constrainedW = effectiveVw * 0.92;
-              const constrainedH = constrainedW / REEL_ASPECT;
-              scaleX = constrainedW / videoW;
-              scaleY = constrainedH / videoH;
-            } else {
-              scaleX = targetW / videoW;
-              scaleY = targetH / videoH;
-            }
-          }
-          break;
-        case 'fill':
-          {
-            // Target: fill screen completely (may crop)
-            const fillByHeight = effectiveVh / videoH;
-            const fillByWidth = effectiveVw / videoW;
-            scaleX = scaleY = Math.max(fillByHeight, fillByWidth);
-          }
-          break;
-        case 'stretch':
-          {
-            // Target: stretch to fill screen (ignores aspect ratio)
-            scaleX = effectiveVw / videoW * 0.95;
-            scaleY = effectiveVh / videoH * 0.95;
-          }
-          break;
-        default:
-          // Specific aspect ratio (9:16, 16:9, etc.)
-          if (typeof aspectConfig.value === 'number') {
-            const targetRatio = aspectConfig.value;
-            let targetW, targetH;
-            if (effectiveVw / effectiveVh > targetRatio) {
-              targetH = effectiveVh * 0.9;
-              targetW = targetH * targetRatio;
-            } else {
-              targetW = effectiveVw * 0.9;
-              targetH = targetW / targetRatio;
-            }
-            scaleX = targetW / videoW;
-            scaleY = targetH / videoH;
-          } else {
-            // Fallback: fit to 92% of screen
-            const targetH = effectiveVh * 0.92;
-            const targetW = targetH * videoAspect;
-            scaleX = targetW / videoW;
-            scaleY = targetH / videoH;
-          }
+    switch (aspectConfig.value) {
+      case 'fit':
+      case null: { // 'original'
+        // Consistent 9:16 portrait target — same visual size regardless of reel source quality
+        const dims = calculateDomSizeForVisualFit(vw * 0.92, vh * 0.92, 9 / 16, isRotated90);
+        domW = dims.domW;
+        domH = dims.domH;
+        break;
+      }
+      case 'fill': {
+        // Fill full viewport — objectFit cover handles cropping
+        domW = isRotated90 ? vh : vw;
+        domH = isRotated90 ? vw : vh;
+        objectFit = 'cover';
+        break;
+      }
+      case 'stretch': {
+        // Stretch to fill — objectFit fill ignores aspect ratio
+        domW = (isRotated90 ? vh : vw) * 0.98;
+        domH = (isRotated90 ? vw : vh) * 0.98;
+        objectFit = 'fill';
+        break;
+      }
+      default: {
+        if (typeof aspectConfig.value === 'number') {
+          const dims = calculateDomSizeForVisualFit(vw * 0.9, vh * 0.9, aspectConfig.value, isRotated90);
+          domW = dims.domW;
+          domH = dims.domH;
+        } else {
+          // Fallback: use actual video intrinsic aspect ratio
+          const videoAspect = (video.videoWidth || 9) / (video.videoHeight || 16);
+          const dims = calculateDomSizeForVisualFit(vw * 0.92, vh * 0.92, videoAspect, isRotated90);
+          domW = dims.domW;
+          domH = dims.domH;
+        }
+        break;
       }
     }
 
-    // Apply zoom
-    scaleX *= GlobalState.zoom;
-    scaleY *= GlobalState.zoom;
-
-    // Build transform string
-    // Order matters: translate (for centering) -> rotate -> scale
-
-    // Center the video
-    transformParts.push('translate(-50%, -50%)');
-
-    // Apply pan (relative to screen coordinates)
+    // Build transform: center + optional rotation + optional user zoom
+    let tx = '-50%', ty = '-50%';
     if (GlobalState.panX !== 0 || GlobalState.panY !== 0) {
-      transformParts[0] = `translate(calc(-50% + ${GlobalState.panX}px), calc(-50% + ${GlobalState.panY}px))`;
+      tx = `calc(-50% + ${GlobalState.panX}px)`;
+      ty = `calc(-50% + ${GlobalState.panY}px)`;
     }
-
-    // Apply rotation
+    const transformParts = [`translate(${tx}, ${ty})`];
     if (GlobalState.rotation !== 0) {
       transformParts.push(`rotate(${GlobalState.rotation}deg)`);
     }
-
-    // Apply scale only in overlay mode
-    if (GlobalState.isOverlayActive) {
-      transformParts.push(`scale(${scaleX}, ${scaleY})`);
+    if (GlobalState.zoom !== 1) {
+      transformParts.push(`scale(${GlobalState.zoom})`);
     }
 
     return {
       transform: transformParts.join(' '),
-      width,
-      height,
+      width: Math.round(domW) + 'px',
+      height: Math.round(domH) + 'px',
       objectFit
     };
   }
@@ -908,9 +1199,9 @@
 
   function handleVideoChange(newVideo) {
     if (!newVideo) return;
-    if (newVideo === GlobalState.currentVideo) return;
-
     const newSrc = newVideo.currentSrc || newVideo.src;
+    const previousVideo = GlobalState.currentVideo;
+    if (newVideo === GlobalState.currentVideo && newSrc === GlobalState.currentVideoSrc) return;
     if (newSrc === GlobalState.currentVideoSrc) return;
 
     log('Video changed:', newSrc?.substring(0, 50) + '...');
@@ -921,8 +1212,9 @@
 
     // If we were in overlay mode, we need to migrate to new video
     const wasOverlayActive = GlobalState.isOverlayActive;
+    const isSameVideoElement = newVideo === GlobalState.currentVideo;
 
-    if (wasOverlayActive && GlobalState.currentVideo) {
+    if (wasOverlayActive && GlobalState.currentVideo && !isSameVideoElement) {
       // Restore old video first
       const oldVideo = GlobalState.currentVideo;
 
@@ -949,6 +1241,10 @@
       if (oldVideo._dimensionCheckInterval) {
         clearInterval(oldVideo._dimensionCheckInterval);
         delete oldVideo._dimensionCheckInterval;
+      }
+      if (oldVideo._dimensionResizeObserver) {
+        oldVideo._dimensionResizeObserver.disconnect();
+        delete oldVideo._dimensionResizeObserver;
       }
       if (oldVideo._hdQualityCheckInterval) {
         clearInterval(oldVideo._hdQualityCheckInterval);
@@ -979,11 +1275,19 @@
     // Update current video reference
     GlobalState.currentVideo = newVideo;
     GlobalState.currentVideoSrc = newSrc;
-    GlobalState.isOverlayActive = false; // Reset overlay state
+    GlobalState.activeVideoCache = {
+      video: newVideo,
+      at: Date.now(),
+      path: window.location.pathname,
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
+    GlobalState.inlineDownloadSyncCache = { signature: '', at: 0, mount: null };
+    GlobalState.isOverlayActive = wasOverlayActive && isSameVideoElement;
 
     // Apply saved audio preferences to new video
     if (GlobalState.userMuted !== null) {
-      newVideo.muted = GlobalState.userMuted;
+      applyVideoMuteState(newVideo, GlobalState.userMuted);
     }
     if (GlobalState.userVolume !== null) {
       newVideo.volume = GlobalState.userVolume;
@@ -999,7 +1303,7 @@
     if (!newVideo._ir_muteListener) {
       newVideo._ir_muteListener = () => {
         if (GlobalState.userMuted !== null && newVideo.muted !== GlobalState.userMuted) {
-          newVideo.muted = GlobalState.userMuted;
+          applyVideoMuteState(newVideo, GlobalState.userMuted);
         }
         if (GlobalState.userVolume !== null && newVideo.volume !== GlobalState.userVolume) {
           newVideo.volume = GlobalState.userVolume;
@@ -1022,6 +1326,9 @@
     newVideo._hdUrl = null;
     newVideo._hdRetryCount = 0; // Reset retry counter for new video
     newVideo._hdAttemptStartTime = null;
+    if (newVideo !== previousVideo || GlobalState.reelNavigationInProgress) {
+      clearHDInteractionSuppression(newVideo);
+    }
 
     // Setup observer to detect when Instagram changes the video source back
     setupVideoSourceObserver(newVideo);
@@ -1046,19 +1353,25 @@
       }, 100);
     }
 
-    // If we had transforms active, reapply to new video
+    // If we had transforms active, reapply to new video.
+    // When coming from overlay mode (navigating reels), reactivate immediately —
+    // no setTimeout — so there is zero visible flash between reels.
     if (wasOverlayActive ||
       GlobalState.rotation !== 0 ||
       GlobalState.zoom !== 1 ||
       GlobalState.aspectRatio !== 'original' ||
       GlobalState.isTheaterMode) {
-      // Small delay to let video element stabilize
-      setTimeout(() => {
+      if (wasOverlayActive && GlobalState.enhancedModeActive) {
+        // Synchronous reactivation: no blink, no gap
         applyTransforms();
-      }, 50);
+      } else {
+        // Non-overlay transforms: tiny delay is fine
+        setTimeout(() => { applyTransforms(); }, 50);
+      }
     }
 
     updateControlPanel();
+    syncInlineDownloadButtons(true);
   }
 
   // ============================================
@@ -1066,6 +1379,8 @@
   // ============================================
 
   function rotate(degrees) {
+    const activeVideo = GlobalState.currentVideo || findActiveVideo(true);
+    pauseHDRestoration(4500, 'rotate', activeVideo);
     GlobalState.rotation = ((GlobalState.rotation + degrees) % 360 + 360) % 360;
     applyTransforms();
     showToast(`${GlobalState.rotation}°`, '↻');
@@ -1085,6 +1400,7 @@
     applyTransforms();
     showToast(CONFIG.ASPECT_RATIOS[ratio].label, '📐');
     updateControlPanel();
+    Settings.saveAspectRatio();
   }
 
   function cycleAspectRatio() {
@@ -1142,23 +1458,61 @@
   // AUDIO & PLAYBACK CONTROLS
   // ============================================
 
-  function toggleMute() {
-    // Re-acquire video reference in case it changed
-    let video = GlobalState.currentVideo;
-    if (!video) {
-      video = findActiveVideo();
-      if (video) {
-        GlobalState.currentVideo = video;
-      } else {
-        log('toggleMute: No video found');
-        showToast('No video found', '⚠️');
-        return;
+  function getVisibleVideos() {
+    return Array.from(document.querySelectorAll('video')).filter(video => {
+      try {
+        if (!video.isConnected) return false;
+        const rect = video.getBoundingClientRect();
+        return rect.width > 50 && rect.height > 50 &&
+          rect.bottom > 0 && rect.right > 0 &&
+          rect.top < window.innerHeight && rect.left < window.innerWidth;
+      } catch (e) {
+        return false;
       }
+    });
+  }
+
+  function applyVideoMuteState(video, muted) {
+    if (!video) return;
+
+    if (!muted && video.volume === 0) {
+      const restoredVolume = GlobalState.userVolume && GlobalState.userVolume > 0
+        ? GlobalState.userVolume
+        : 1;
+      video.volume = restoredVolume;
+      GlobalState.userVolume = restoredVolume;
+      Settings.saveVolume();
     }
 
-    const newMutedState = !video.muted;
-    video.muted = newMutedState;
+    video.muted = muted;
+    video.defaultMuted = muted;
+    if (muted) {
+      video.setAttribute('muted', '');
+    } else {
+      video.removeAttribute('muted');
+    }
+  }
+
+  function toggleMute() {
+    const activeVideo = findActiveVideo(true);
+    if (activeVideo && activeVideo !== GlobalState.currentVideo) {
+      handleVideoChange(activeVideo);
+    }
+
+    const video = activeVideo || GlobalState.currentVideo;
+    if (!video) {
+      log('toggleMute: No video found');
+      showToast('No video found', '⚠️');
+      return;
+    }
+
+    const isEffectivelyMuted = video.muted || video.volume === 0;
+    const newMutedState = !isEffectivelyMuted;
+
+    const targetVideos = new Set([video, ...getVisibleVideos()]);
+    targetVideos.forEach(targetVideo => applyVideoMuteState(targetVideo, newMutedState));
     GlobalState.userMuted = newMutedState; // Save preference
+    Settings.saveMuted();
 
     log('toggleMute:', newMutedState ? 'muted' : 'unmuted');
     showToast(newMutedState ? 'Muted' : 'Unmuted', newMutedState ? '🔇' : '🔊');
@@ -1167,8 +1521,8 @@
     // Re-apply after a short delay to combat Instagram's internal handlers
     // that might reset the mute state
     setTimeout(() => {
-      if (video && GlobalState.userMuted !== null && video.muted !== GlobalState.userMuted) {
-        video.muted = GlobalState.userMuted;
+      if (GlobalState.userMuted !== null) {
+        targetVideos.forEach(targetVideo => applyVideoMuteState(targetVideo, GlobalState.userMuted));
         updateControlPanel();
       }
     }, 50);
@@ -1181,6 +1535,7 @@
     const newVolume = Math.max(0, Math.min(1, level));
     video.volume = newVolume;
     GlobalState.userVolume = newVolume; // Save preference
+    Settings.saveVolume();
 
     if (newVolume > 0 && video.muted) {
       video.muted = false;
@@ -1189,6 +1544,7 @@
     if (newVolume === 0) {
       GlobalState.userMuted = true;
     }
+    Settings.saveMuted();
     updateControlPanel();
   }
 
@@ -1202,6 +1558,7 @@
     // Only save to persistent state if not a temporary hold
     if (!GlobalState.isHoldingSpeedKey) {
       GlobalState.playbackSpeed = newSpeed;
+      Settings.savePlaybackSpeed();
     }
 
     if (showToastMsg) {
@@ -1265,17 +1622,8 @@
   function setupHDVideoListeners() {
     // Receive HD video data from interceptor
     window.addEventListener('angel-hd-video', (event) => {
-      const data = event.detail;
+      const data = cacheHDVideoData(event.detail);
       if (data && data.url) {
-        // Store in our local map too
-        if (data.mediaId) {
-          GlobalState.hdVideoMap.set(String(data.mediaId), {
-            url: data.url,
-            width: data.width,
-            height: data.height,
-            source: data.source
-          });
-        }
 
         log('HD video available:', data.width + 'x' + data.height, data.source);
 
@@ -1284,6 +1632,256 @@
           setTimeout(() => applyHDToVideo(GlobalState.currentVideo), 100);
         }
       }
+    });
+  }
+
+  function clearPendingHDForVideo(video) {
+    const keys = new Set();
+    if (video) {
+      [video.currentSrc, video.src, video._hdUrl].forEach(src => {
+        if (src) keys.add(src);
+      });
+    }
+    if (GlobalState.currentVideoSrc) keys.add(GlobalState.currentVideoSrc);
+    keys.forEach(key => GlobalState.pendingHDRequests.delete(key));
+  }
+
+  function getVideoSource(video) {
+    return video ? (video.currentSrc || video.src || '') : '';
+  }
+
+  function suppressHDForInteraction(video, durationMs = 60000) {
+    if (!video) return;
+    video._hdInteractionSuppressUntil = Math.max(
+      video._hdInteractionSuppressUntil || 0,
+      Date.now() + durationMs
+    );
+    video._hdInteractionSuppressedSrc = getVideoSource(video);
+  }
+
+  function clearHDInteractionSuppression(video) {
+    if (!video) return;
+    delete video._hdInteractionSuppressUntil;
+    delete video._hdInteractionSuppressedSrc;
+  }
+
+  function isHDSuppressedForInteraction(video) {
+    return !!video && Date.now() < (video._hdInteractionSuppressUntil || 0);
+  }
+
+  function keepPlaybackAliveAfterInteraction(video, reason = 'interaction') {
+    if (!video) return;
+    const shouldBePlaying = !video.paused;
+    if (!shouldBePlaying) return;
+
+    [120, 400, 900, 1600].forEach(delay => {
+      setTimeout(() => {
+        if (!video.isConnected || video !== GlobalState.currentVideo) return;
+        if (GlobalState.isOverlayActive && video === GlobalState.currentVideo) {
+          applyTransforms();
+        }
+        if (video.paused || video.readyState < 2) {
+          log('Keeping playback alive after', reason);
+          video.play().catch(() => { });
+        }
+      }, delay);
+    });
+  }
+
+  function pauseHDRestoration(durationMs = 2500, reason = 'interaction', video = GlobalState.currentVideo) {
+    const pausedUntil = Math.max(
+      GlobalState.hdRestorePausedUntil || 0,
+      Date.now() + durationMs
+    );
+    GlobalState.hdRestorePausedUntil = pausedUntil;
+    GlobalState.hdInteractionEpoch++;
+    if (video) {
+      video._hdSettlingUntil = Math.max(video._hdSettlingUntil || 0, pausedUntil);
+      suppressHDForInteraction(video);
+      markHDDriftAccepted(video);
+      keepPlaybackAliveAfterInteraction(video, reason);
+    }
+    GlobalState.hdLoading = false;
+    updateControlPanel();
+    log('HD restoration paused after', reason);
+  }
+
+  function isHDRestorationPaused(video = null) {
+    const now = Date.now();
+    return now < (GlobalState.hdRestorePausedUntil || 0) ||
+      (video && now < (video._hdSettlingUntil || 0)) ||
+      isHDSuppressedForInteraction(video);
+  }
+
+  function markHDDriftAccepted(video) {
+    if (!video) return;
+    video._hdApplied = false;
+    video._hdRetryCount = 0;
+    video._hdAttemptStartTime = null;
+    clearPendingHDForVideo(video);
+    if (video === GlobalState.currentVideo) {
+      GlobalState.hdAppliedToCurrentVideo = false;
+      GlobalState.hdLoading = false;
+      updateControlPanel();
+    }
+  }
+
+  function isInstagramLikeTarget(target) {
+    if (!target || target.closest?.('#angel-overlay, #angel-backdrop, #angel-ctrl')) return false;
+
+    const labelled = target.closest?.('[aria-label]') ||
+      target.closest?.('button, [role="button"]')?.querySelector?.('[aria-label]');
+    const label = (labelled?.getAttribute?.('aria-label') || '').trim().toLowerCase();
+
+    return /^(like|unlike)$/i.test(label);
+  }
+
+  function cacheHDVideoData(data) {
+    if (!data || !data.url) return null;
+
+    const hdData = {
+      url: String(data.url),
+      downloadUrl: data.downloadUrl ? String(data.downloadUrl) : String(data.url),
+      width: Number(data.width) || 0,
+      height: Number(data.height) || 0,
+      bandwidth: data.bandwidth || null,
+      codecs: data.codecs || null,
+      qualityScore: Number(data.qualityScore) || 0,
+      source: data.source || 'unknown',
+      mediaId: data.mediaId ? String(data.mediaId) : null,
+      code: data.code ? String(data.code) : null,
+      timestamp: Number(data.timestamp) || Date.now()
+    };
+
+    const keys = new Set([hdData.url]);
+    const urlKey = extractUrlKey(hdData.url);
+    if (urlKey) keys.add(urlKey);
+    if (hdData.mediaId) keys.add(hdData.mediaId);
+    if (hdData.code) keys.add(`code:${hdData.code}`);
+
+    keys.forEach(key => GlobalState.hdVideoMap.set(key, hdData));
+
+    const existingIndex = GlobalState.hdVideoList.findIndex(item =>
+      item.url === hdData.url ||
+      (hdData.mediaId && item.mediaId === hdData.mediaId) ||
+      (hdData.code && item.code === hdData.code)
+    );
+
+    if (existingIndex >= 0) {
+      GlobalState.hdVideoList[existingIndex] = hdData;
+    } else {
+      GlobalState.hdVideoList.push(hdData);
+    }
+
+    if (GlobalState.hdVideoList.length > 80) {
+      GlobalState.hdVideoList.splice(0, GlobalState.hdVideoList.length - 80);
+    }
+
+    return hdData;
+  }
+
+  function getLocalHDForUrl(videoUrl) {
+    if (!videoUrl) return null;
+
+    const direct = GlobalState.hdVideoMap.get(videoUrl);
+    if (direct?.url) return direct;
+
+    const urlKey = extractUrlKey(videoUrl);
+    if (urlKey) {
+      const byKey = GlobalState.hdVideoMap.get(urlKey);
+      if (byKey?.url) return byKey;
+    }
+
+    for (const hdInfo of new Set(GlobalState.hdVideoMap.values())) {
+      if (!hdInfo?.url) continue;
+      if (hdInfo.url === videoUrl) return hdInfo;
+      if (urlKey && extractUrlKey(hdInfo.url) === urlKey) return hdInfo;
+    }
+
+    return null;
+  }
+
+  function getRecentLocalHD(maxAgeMs = 30000) {
+    const now = Date.now();
+    for (let i = GlobalState.hdVideoList.length - 1; i >= 0; i--) {
+      const item = GlobalState.hdVideoList[i];
+      if (item?.url && now - item.timestamp <= maxAgeMs) return item;
+    }
+    return null;
+  }
+
+  function getLocalHDForShortcode(shortcode, maxAgeMs = 120000) {
+    if (!shortcode) return null;
+
+    const byCode = GlobalState.hdVideoMap.get(`code:${shortcode}`);
+    if (byCode?.url && Date.now() - byCode.timestamp <= maxAgeMs) return byCode;
+
+    for (let i = GlobalState.hdVideoList.length - 1; i >= 0; i--) {
+      const item = GlobalState.hdVideoList[i];
+      if (item?.url && item.code === shortcode && Date.now() - item.timestamp <= maxAgeMs) {
+        return item;
+      }
+    }
+
+    return null;
+  }
+
+  function getHighestQualityLocalHD(maxAgeMs = 120000) {
+    const now = Date.now();
+    return GlobalState.hdVideoList
+      .filter(item => item?.url && now - item.timestamp <= maxAgeMs)
+      .reduce((best, item) => {
+        if (!best) return item;
+        const itemScore = item.qualityScore || ((item.width || 0) * (item.height || 0));
+        const bestScore = best.qualityScore || ((best.width || 0) * (best.height || 0));
+        return itemScore > bestScore ? item : best;
+      }, null);
+  }
+
+  function hdInfoMatchesRequest(hdInfo, videoUrl, shortcode) {
+    if (!hdInfo?.url) return false;
+    if (shortcode && hdInfo.code === shortcode) return true;
+
+    const requestedKey = extractUrlKey(videoUrl);
+    if (requestedKey && extractUrlKey(hdInfo.url) === requestedKey) return true;
+
+    return !shortcode && Date.now() - (hdInfo.timestamp || 0) <= 30000;
+  }
+
+  function requestHDInfoFromPage(videoUrl, shortcode, timeoutMs = 1800) {
+    return new Promise((resolve) => {
+      const requestId = `angel-hd-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      let settled = false;
+
+      const finish = (hdInfo = null) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('angel-hd-response', handleResponse);
+        window.removeEventListener('angel-hd-video', handleVideo);
+        clearTimeout(timeoutId);
+        resolve(hdInfo ? cacheHDVideoData(hdInfo) : null);
+      };
+
+      const handleResponse = (event) => {
+        const detail = event.detail || {};
+        if (detail.requestId !== requestId) return;
+        finish(detail.hdInfo || null);
+      };
+
+      const handleVideo = (event) => {
+        const hdInfo = cacheHDVideoData(event.detail);
+        if (hdInfoMatchesRequest(hdInfo, videoUrl, shortcode)) {
+          finish(hdInfo);
+        }
+      };
+
+      const timeoutId = setTimeout(() => finish(null), timeoutMs);
+
+      window.addEventListener('angel-hd-response', handleResponse);
+      window.addEventListener('angel-hd-video', handleVideo);
+      window.dispatchEvent(new CustomEvent('angel-hd-request', {
+        detail: { requestId, videoUrl, shortcode }
+      }));
     });
   }
 
@@ -1310,6 +1908,12 @@
 
           // If we have an HD URL stored and the src changed to something different
           if (hdUrl && newSrc && newSrc !== hdUrl && GlobalState.hdMode) {
+            if (isHDRestorationPaused(video)) {
+              log('HD reapply skipped (Instagram interaction settling)');
+              markHDDriftAccepted(video);
+              return;
+            }
+
             const now = Date.now();
             // Prevent rapid re-application (cooldown)
             if (now - video._lastHDReapplyTime < HD_REAPPLY_COOLDOWN) {
@@ -1331,11 +1935,21 @@
             video._hdRetryCount = 0; // Reset retry counter
             video._hdAttemptStartTime = Date.now();
 
-            // Preserve dimensions immediately
-            enforceDimensions(video);
+            // Preserve dimensions immediately in inline mode. Overlay mode owns its
+            // dimensions through applyTransforms(), so do not lock a rotated box.
+            if (GlobalState.isOverlayActive && video === GlobalState.currentVideo) {
+              applyTransforms();
+            } else {
+              enforceDimensions(video);
+            }
 
             // Re-apply HD with a slightly longer delay to let Instagram's change stabilize
+            const reapplyEpoch = GlobalState.hdInteractionEpoch;
             setTimeout(() => {
+              if (GlobalState.hdInteractionEpoch !== reapplyEpoch || isHDRestorationPaused(video)) {
+                markHDDriftAccepted(video);
+                return;
+              }
               if (video === GlobalState.currentVideo && GlobalState.hdMode) {
                 // Directly set the HD source without going through full applyHDToVideo
                 // to avoid re-triggering the observer loop
@@ -1351,7 +1965,11 @@
                     video.play().catch(() => { });
                   }
                   GlobalState.hdLoading = false;
-                  enforceDimensions(video);
+                  if (GlobalState.isOverlayActive && video === GlobalState.currentVideo) {
+                    applyTransforms();
+                  } else {
+                    enforceDimensions(video);
+                  }
                   video.removeEventListener('loadeddata', onReloaded);
                 }, { once: true });
               }
@@ -1384,8 +2002,9 @@
       });
     });
 
-    // Periodic HD quality check (every 1 second) - verify we're still on HD
-    // Increased frequency from 2s to 1s for faster HD restoration
+    // Periodic HD quality check (every 5 seconds) — coarse safety net for paused videos.
+    // The _timeUpdateHDHandler below handles source-drift detection in real time during
+    // playback, so a slow fallback interval is sufficient here.
     video._hdQualityCheckInterval = setInterval(() => {
       if (!GlobalState.hdMode || video !== GlobalState.currentVideo) return;
 
@@ -1394,6 +2013,11 @@
 
       // If HD was applied but source has drifted, re-apply
       if (hdUrl && currentSrc && currentSrc !== hdUrl && video._hdApplied) {
+        if (isHDRestorationPaused(video)) {
+          markHDDriftAccepted(video);
+          return;
+        }
+
         const now = Date.now();
         if (now - video._lastHDReapplyTime >= HD_REAPPLY_COOLDOWN) {
           log('Periodic check: HD source drifted, re-applying...');
@@ -1402,14 +2026,25 @@
           applyHDToVideo(video);
         }
       }
-    }, 1000); // Reduced from 2000ms for faster detection
+    }, 5000); // Reduced from 1000ms — real-time drift is caught by timeupdate handler
 
-    // Periodic dimension check (every 500ms)
-    video._dimensionCheckInterval = setInterval(() => {
-      if (video._originalDimensions && GlobalState.hdMode) {
-        enforceDimensionsIfNeeded(video);
-      }
-    }, 500);
+    // Replace 500ms dimension poll with a ResizeObserver so we only fire on actual resize
+    if (typeof ResizeObserver !== 'undefined') {
+      const dimObserver = new ResizeObserver(() => {
+        if (video._originalDimensions && GlobalState.hdMode) {
+          enforceDimensionsIfNeeded(video);
+        }
+      });
+      dimObserver.observe(video);
+      video._dimensionResizeObserver = dimObserver;
+    } else {
+      // Fallback for environments without ResizeObserver
+      video._dimensionCheckInterval = setInterval(() => {
+        if (video._originalDimensions && GlobalState.hdMode) {
+          enforceDimensionsIfNeeded(video);
+        }
+      }, 500);
+    }
 
     // Listen for timeupdate to catch source changes during playback
     // Instagram can swap sources mid-stream without triggering src attribute mutation
@@ -1425,6 +2060,11 @@
         lastCheckedSrc = currentSrc;
 
         if (currentSrc !== hdUrl && video._hdApplied) {
+          if (isHDRestorationPaused(video)) {
+            markHDDriftAccepted(video);
+            return;
+          }
+
           const now = Date.now();
           if (now - video._lastHDReapplyTime >= HD_REAPPLY_COOLDOWN) {
             log('Timeupdate: Source drifted from HD during playback, restoring...');
@@ -1466,9 +2106,26 @@
     if (!video) return null;
     if (video._originalDimensions && !force) return video._originalDimensions;
 
-    const rect = video.getBoundingClientRect();
-    const width = Math.round(rect.width || video.offsetWidth || 0);
-    const height = Math.round(rect.height || video.offsetHeight || 0);
+    const isOverlayVideo = video.classList.contains('ir-overlay-video') ||
+      (GlobalState.isOverlayActive && video === GlobalState.currentVideo);
+    const styleWidth = parseFloat(video.style.width);
+    const styleHeight = parseFloat(video.style.height);
+    const rect = isOverlayVideo ? null : video.getBoundingClientRect();
+
+    // getBoundingClientRect() includes CSS transforms. In rotation mode that
+    // reports the visual, swapped box, so prefer untransformed layout dimensions.
+    const width = Math.round(
+      (isOverlayVideo ? styleWidth : 0) ||
+      video.offsetWidth ||
+      rect?.width ||
+      0
+    );
+    const height = Math.round(
+      (isOverlayVideo ? styleHeight : 0) ||
+      video.offsetHeight ||
+      rect?.height ||
+      0
+    );
 
     if (width > 0 && height > 0) {
       video._originalDimensions = { width, height };
@@ -1482,11 +2139,11 @@
    * Force dimensions to original values
    */
   function enforceDimensions(video) {
-    const original = video._originalDimensions || captureVideoDimensions(video);
-    if (!original) return;
-
     // Don't enforce dimensions when in overlay mode - transforms handle sizing
     if (GlobalState.isOverlayActive || GlobalState.enhancedModeActive) return;
+
+    const original = video._originalDimensions || captureVideoDimensions(video);
+    if (!original) return;
 
     video.style.width = original.width + 'px';
     video.style.height = original.height + 'px';
@@ -1500,11 +2157,11 @@
    * Only enforce if dimensions have drifted
    */
   function enforceDimensionsIfNeeded(video) {
-    const original = video._originalDimensions || captureVideoDimensions(video);
-    if (!original) return;
-
     // Don't enforce dimensions when in overlay mode - transforms handle sizing
     if (GlobalState.isOverlayActive || GlobalState.enhancedModeActive) return;
+
+    const original = video._originalDimensions || captureVideoDimensions(video);
+    if (!original) return;
 
     const current = { width: video.offsetWidth, height: video.offsetHeight };
 
@@ -1541,19 +2198,27 @@
    * Find HD info for a video - tries multiple strategies with fast timeout
    */
   function findHDInfo(videoUrl) {
-    // Strategy 1: Query the injected script's API if available (FIXED: __angel_hd not __instamutate_hd)
+    // Strategy 1: Query the injected script's API if available
     if (window.__angel_hd && window.__angel_hd.getHDForUrl) {
       const hdInfo = window.__angel_hd.getHDForUrl(videoUrl);
       if (hdInfo && hdInfo.url) {
         log('Found HD via interceptor API');
-        return hdInfo;
+        return cacheHDVideoData(hdInfo);
       }
     }
 
-    // Strategy 2: Check our local map by URL key
+    // Strategy 2: Check our local cache populated by page-context events
+    const localHD = getLocalHDForUrl(videoUrl);
+    if (localHD?.url) {
+      log('Found HD via local event cache');
+      return localHD;
+    }
+
+    // Strategy 3: Check our local map by URL key
     const urlKey = extractUrlKey(videoUrl);
     if (urlKey) {
       for (const [key, value] of GlobalState.hdVideoMap.entries()) {
+        if (!value?.url) continue;
         if (extractUrlKey(value.url) === urlKey || key.includes(urlKey)) {
           log('Found HD via local map');
           return value;
@@ -1561,16 +2226,45 @@
       }
     }
 
-    // Strategy 3: Get the latest HD video if we have any
+    // Strategy 4: Get the latest HD video if it was captured recently (8s window)
+    const recentLocal = getRecentLocalHD(8000);
+    if (recentLocal?.url) {
+      log('Using latest local HD video (within 8s window)');
+      return recentLocal;
+    }
+
     if (window.__angel_hd && window.__angel_hd.getLatestHD) {
       const latest = window.__angel_hd.getLatestHD();
       if (latest && latest.url) {
-        // Only use latest if it was recent (within 3 seconds for faster fallback)
-        if (Date.now() - latest.timestamp < 3000) {
-          log('Using latest HD video');
-          return latest;
+        if (Date.now() - latest.timestamp < 8000) {
+          log('Using latest HD video (within 8s window)');
+          return cacheHDVideoData(latest);
         }
       }
+    }
+
+    // Strategy 5: Use globally highest quality HD from cache as last resort
+    const bestLocal = getHighestQualityLocalHD(120000);
+    if (bestLocal?.url) {
+      log('Using highest quality local HD from cache');
+      return bestLocal;
+    }
+
+    if (window.__angel_hd && window.__angel_hd.getHighestQualityHD) {
+      const best = window.__angel_hd.getHighestQualityHD();
+      if (best && best.url) {
+        // Only use if it's from the current session (within last 2 minutes)
+        if (Date.now() - best.timestamp < 120000) {
+          log('Using highest quality HD from cache');
+          return cacheHDVideoData(best);
+        }
+      }
+    }
+
+    // Strategy 6: Trigger a proactive API fetch for the current page's shortcode
+    // so next retry attempt will find the HD URL
+    if (window.__angel_hd && window.__angel_hd.fetchCurrentPageHD) {
+      window.__angel_hd.fetchCurrentPageHD();
     }
 
     return null;
@@ -1605,6 +2299,11 @@
    */
   function applyHDToVideo(video) {
     if (!video || !GlobalState.hdMode) return false;
+    if (isHDRestorationPaused(video)) {
+      log('HD apply skipped while Instagram interaction settles');
+      markHDDriftAccepted(video);
+      return false;
+    }
 
     const currentSrc = video.currentSrc || video.src;
     if (!currentSrc) return false;
@@ -1633,7 +2332,6 @@
     // Set loading state only on first attempt
     if (video._hdRetryCount === 0) {
       GlobalState.hdLoading = true;
-      showHDProgress(true);
       updateControlPanel();
     }
 
@@ -1660,7 +2358,6 @@
         video._hdApplied = true; // Mark as "attempted" to prevent further retries
         GlobalState.hdLoading = false;
         GlobalState.pendingHDRequests.delete(currentSrc); // Clean up pending
-        showHDProgress(false);
         GlobalState.hdAppliedToCurrentVideo = false;
         updateControlPanel();
         // No notification for fallback - silent and smooth
@@ -1670,10 +2367,17 @@
       // v4: Retry with adaptive exponential backoff + jitter
       video._hdRetryCount++;
       const backoffDelay = getRetryDelay(video._hdRetryCount);
+      const retryEpoch = GlobalState.hdInteractionEpoch;
       log(`No HD found, retry ${video._hdRetryCount}/${HD_RETRY_CONFIG.maxAttempts} in ${backoffDelay}ms...`);
 
       setTimeout(() => {
-        if (!video._hdApplied && GlobalState.hdMode && video === GlobalState.currentVideo) {
+        if (
+          retryEpoch === GlobalState.hdInteractionEpoch &&
+          !isHDRestorationPaused(video) &&
+          !video._hdApplied &&
+          GlobalState.hdMode &&
+          video === GlobalState.currentVideo
+        ) {
           GlobalState.pendingHDRequests.delete(currentSrc); // Allow retry
           applyHDToVideo(video);
         } else {
@@ -1690,7 +2394,6 @@
       GlobalState.hdAppliedToCurrentVideo = true;
       GlobalState.hdLoading = false;
       GlobalState.pendingHDRequests.delete(currentSrc); // Clean up pending
-      showHDProgress(false);
       GlobalState.performanceMetrics.hdSuccesses++;
       updateControlPanel();
       // NO NOTIFICATION - already at HD quality
@@ -1703,26 +2406,37 @@
     const wasMuted = video.muted;
     const volume = video.volume;
 
-    // Preserve stable video dimensions to prevent SD/HD source swaps from changing frame size.
-    const originalDims = captureVideoDimensions(video) || {
-      width: Math.round(video.offsetWidth || 0),
-      height: Math.round(video.offsetHeight || 0)
-    };
-    const originalWidth = originalDims.width;
-    const originalHeight = originalDims.height;
-    const computedStyle = window.getComputedStyle(video);
-    const originalObjectFit = computedStyle.objectFit;
+    const isOverlayVideo = GlobalState.isOverlayActive && video === GlobalState.currentVideo;
+    let originalWidth = 0;
+    let originalHeight = 0;
+    let originalObjectFit = 'contain';
+
+    if (!isOverlayVideo) {
+      // Preserve stable video dimensions to prevent SD/HD source swaps from changing frame size.
+      const originalDims = captureVideoDimensions(video) || {
+        width: Math.round(video.offsetWidth || 0),
+        height: Math.round(video.offsetHeight || 0)
+      };
+      originalWidth = originalDims.width;
+      originalHeight = originalDims.height;
+      const computedStyle = window.getComputedStyle(video);
+      originalObjectFit = computedStyle.objectFit;
+    }
 
     log('Upgrading to HD:', hdInfo.width + 'x' + hdInfo.height);
 
-    // Aggressively lock dimensions before source change
-    video.style.width = originalWidth + 'px';
-    video.style.height = originalHeight + 'px';
-    video.style.minWidth = originalWidth + 'px';
-    video.style.minHeight = originalHeight + 'px';
-    video.style.maxWidth = originalWidth + 'px';
-    video.style.maxHeight = originalHeight + 'px';
-    video.style.objectFit = originalObjectFit || 'contain';
+    if (isOverlayVideo) {
+      applyTransforms();
+    } else {
+      // Aggressively lock dimensions before source change in inline mode only.
+      video.style.width = originalWidth + 'px';
+      video.style.height = originalHeight + 'px';
+      video.style.minWidth = originalWidth + 'px';
+      video.style.minHeight = originalHeight + 'px';
+      video.style.maxWidth = originalWidth + 'px';
+      video.style.maxHeight = originalHeight + 'px';
+      video.style.objectFit = originalObjectFit || 'contain';
+    }
 
     // Replace source and store HD URL for reversion detection
     video.src = hdInfo.url;
@@ -1732,7 +2446,6 @@
     // Restore state when loaded
     video.addEventListener('loadeddata', function onLoaded() {
       GlobalState.hdLoading = false;
-      showHDProgress(false);
 
       video.currentTime = currentTime;
       video.muted = wasMuted;
@@ -1741,8 +2454,13 @@
         video.play().catch(() => { });
       }
 
-      // Re-enforce dimensions after load
-      enforceDimensions(video);
+      // Re-enforce dimensions after load in inline mode. Overlay mode is sized
+      // from viewport math, not from the swapped rotated bounding rectangle.
+      if (isOverlayVideo && GlobalState.isOverlayActive && video === GlobalState.currentVideo) {
+        applyTransforms();
+      } else {
+        enforceDimensions(video);
+      }
 
       video.removeEventListener('loadeddata', onLoaded);
     }, { once: true });
@@ -1755,8 +2473,7 @@
     // v4: Trigger prefetch for upcoming videos
     triggerHDPrefetch();
 
-    // ONLY show notification when ACTUALLY UPGRADING (source changed)
-    showToast(`HD ${hdInfo.width}×${hdInfo.height}`, '📺');
+    // Silent upgrade: repeated HD toasts are noisy while browsing.
     updateControlPanel();
 
     return true;
@@ -1798,6 +2515,7 @@
    */
   function toggleHDMode() {
     GlobalState.hdMode = !GlobalState.hdMode;
+    Settings.saveHDMode();
 
     if (GlobalState.hdMode) {
       showToast('HD Mode ON', '📺');
@@ -1817,79 +2535,55 @@
   /**
    * Get quality label for display
    */
-  function getQualityLabel() {
-    // Show loading state
-    if (GlobalState.hdLoading) {
-      return '⏳ Loading...';
-    }
-
-    if (!GlobalState.hdMode) {
-      return 'SD';
-    }
-
-    // Try to get quality from current video metadata (most accurate)
-    const video = GlobalState.currentVideo;
-    if (video && video.videoHeight && video.videoHeight > 0) {
-      const height = video.videoHeight;
-      const width = video.videoWidth;
-      if (height >= 2160) return `4K (${width}×${height})`;
-      if (height >= 1440) return `1440p (${width}×${height})`;
-      if (height >= 1080) return `1080p (${width}×${height})`;
-      if (height >= 720) return `720p (${width}×${height})`;
-      if (height >= 480) return `480p (${width}×${height})`;
-      return `${height}p (${width}×${height})`;
-    }
-
-    // Fallback to stored quality info
-    const q = GlobalState.currentVideoQuality;
-    if (q && q.height) {
-      const width = q.width || '?';
-      const height = q.height;
-      if (height >= 2160) return `4K (${width}×${height})`;
-      if (height >= 1440) return `1440p (${width}×${height})`;
-      if (height >= 1080) return `1080p (${width}×${height})`;
-      if (height >= 720) return `720p (${width}×${height})`;
-      if (height >= 480) return `480p (${width}×${height})`;
-      return `${height}p (${width}×${height})`;
-    }
-
-    // Check if interceptor has any videos
-    if (window.__angel_hd && window.__angel_hd.getStats) {
-      const stats = window.__angel_hd.getStats();
-      if (stats.totalVideos === 0) {
-        return 'Waiting for HD...';
-      }
-    }
-
-    return GlobalState.hdAppliedToCurrentVideo ? 'HD' : 'SD';
+  function formatVideoTime(seconds) {
+    if (!isFinite(seconds) || seconds < 0) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
   /**
-   * Get simplified quality label (just the resolution)
+   * Shared resolution bucket helper.
+   * Returns { simple, full } — simple is the badge label, full includes dimensions.
    */
-  function getSimpleQualityLabel() {
-    const video = GlobalState.currentVideo;
-    if (video && video.videoHeight && video.videoHeight > 0) {
-      const height = video.videoHeight;
-      if (height >= 2160) return '4K';
-      if (height >= 1440) return '1440p';
-      if (height >= 1080) return '1080p';
-      if (height >= 720) return '720p';
-      if (height >= 480) return '480p';
-      return height + 'p';
-    }
+  function resolveQualityStrings(height, width) {
+    let tier;
+    if (height >= 2160)      tier = '4K';
+    else if (height >= 1440) tier = '1440p';
+    else if (height >= 1080) tier = '1080p';
+    else if (height >= 720)  tier = '720p';
+    else if (height >= 480)  tier = '480p';
+    else                     tier = `${height}p`;
+    return { simple: tier, full: `${tier} (${width}×${height})` };
+  }
 
+  function getQualityLabel() {
+    if (GlobalState.hdLoading) return '⏳ Loading...';
+    if (!GlobalState.hdMode)  return 'SD';
+
+    const video = GlobalState.currentVideo;
+    if (video && video.videoHeight > 0) {
+      return resolveQualityStrings(video.videoHeight, video.videoWidth).full;
+    }
     const q = GlobalState.currentVideoQuality;
     if (q && q.height) {
-      const height = q.height;
-      if (height >= 2160) return '4K';
-      if (height >= 1440) return '1440p';
-      if (height >= 1080) return '1080p';
-      if (height >= 720) return '720p';
-      if (height >= 480) return '480p';
-      return height + 'p';
+      return resolveQualityStrings(q.height, q.width || '?').full;
     }
+    if (window.__angel_hd?.getStats && window.__angel_hd.getStats().totalVideos === 0) {
+      return 'Waiting for HD...';
+    }
+    return GlobalState.hdAppliedToCurrentVideo ? 'HD' : 'SD';
+  }
 
+  function getSimpleQualityLabel() {
+    const video = GlobalState.currentVideo;
+    if (video && video.videoHeight > 0) {
+      return resolveQualityStrings(video.videoHeight, video.videoWidth).simple;
+    }
+    const q = GlobalState.currentVideoQuality;
+    if (q && q.height) {
+      return resolveQualityStrings(q.height, q.width || 0).simple;
+    }
     return GlobalState.hdMode ? 'HD' : 'SD';
   }
 
@@ -2426,32 +3120,18 @@
           showToast('Action sent', '🔄');
         }
         updateControlPanel();
-
-        // Re-check HD status after interaction
-        if (GlobalState.currentVideo && GlobalState.hdMode) {
-          setTimeout(() => {
-            const video = GlobalState.currentVideo;
-            const currentSrc = video?.currentSrc || video?.src;
-            const hdSrc = video?._hdUrl;
-            const needsRestore = !!video && (!video._hdApplied || (hdSrc && currentSrc && currentSrc !== hdSrc));
-
-            if (needsRestore) {
-              log('Re-checking HD after like...');
-              video._hdApplied = false;
-              applyHDToVideo(video);
-            }
-          }, 200);
-        }
       }, 350); // Give Instagram time to update
     }
 
     if (buttons.like) {
       log('Clicking like button element');
+      pauseHDRestoration(4500, 'like', currentVideo);
       simulateButtonClick(buttons.like);
       verifyAndShowResult();
     } else if (buttons._doubleTapFallback) {
       // Use double-tap fallback
       log('Using double-tap fallback for like');
+      pauseHDRestoration(4500, 'double-tap like', currentVideo);
       doubleTapLike((success) => {
         if (success) {
           showToast('Liked!', '❤️');
@@ -2467,9 +3147,11 @@
         const retryButtons = findReelActionButtons();
         if (retryButtons.like) {
           log('Found like button on retry');
+          pauseHDRestoration(4500, 'like retry', GlobalState.currentVideo);
           simulateButtonClick(retryButtons.like);
           verifyAndShowResult();
         } else if (retryButtons._doubleTapFallback) {
+          pauseHDRestoration(4500, 'double-tap like retry', GlobalState.currentVideo);
           doubleTapLike((success) => {
             if (success) {
               showToast('Liked!', '❤️');
@@ -2489,13 +3171,37 @@
 
   function triggerSave() {
     // Ensure we have the current reel's video before finding buttons
-    const currentVideo = findActiveVideo();
-    if (currentVideo && currentVideo !== GlobalState.currentVideo) {
+    // Mirrors the overlay-aware pattern from triggerLike()
+    const useOverlayVideo = GlobalState.isOverlayActive && !!GlobalState.currentVideo;
+    const currentVideo = useOverlayVideo ? GlobalState.currentVideo : findActiveVideo();
+    if (!useOverlayVideo && currentVideo && currentVideo !== GlobalState.currentVideo) {
       log('triggerSave: syncing to new video before action');
       handleVideoChange(currentVideo);
+      setTimeout(() => triggerSave(), 100);
+      return;
+    }
+
+    // Verify we're not mid-scroll (same guard as triggerLike)
+    if (currentVideo) {
+      const rect = currentVideo.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const videoCenterY = rect.top + rect.height / 2;
+      const centerOffset = Math.abs(videoCenterY - viewportHeight / 2);
+
+      if (centerOffset > viewportHeight * 0.3) {
+        log('triggerSave: video not centered, waiting for scroll to settle...');
+        setTimeout(() => triggerSave(), 200);
+        return;
+      }
     }
 
     const buttons = findReelActionButtons();
+
+    if (Object.keys(buttons).length === 0) {
+      log('triggerSave: no buttons found, retrying...');
+      setTimeout(() => triggerSave(), 150);
+      return;
+    }
     const wasSaved = getSaveState(buttons);
 
     log('triggerSave called, button found:', !!buttons.save, 'current state:', wasSaved);
@@ -2542,6 +3248,1856 @@
         }
       }, 300);
     }
+  }
+
+  // ============================================
+  // DOWNLOAD REEL / PHOTO / CAROUSEL
+  // ============================================
+
+  function triggerDownload(requestedMediaInfo = null) {
+    const mediaInfo = requestedMediaInfo || detectCurrentMedia();
+
+    if (!mediaInfo.type || mediaInfo.type === 'unknown') {
+      showToast('No media found to download', '⚠️');
+      return;
+    }
+
+    if (mediaInfo.type === 'video') {
+      downloadVideo(mediaInfo);
+    } else if (mediaInfo.type === 'image') {
+      downloadImage(mediaInfo);
+    } else if (mediaInfo.type === 'carousel') {
+      const totalCarouselSlides = getTotalSlides(mediaInfo.container);
+      if (totalCarouselSlides <= 1) {
+        downloadCurrentCarouselSlide(mediaInfo);
+      } else {
+        showCarouselDownloadPrompt(mediaInfo);
+      }
+    }
+  }
+
+  function getViewportMediaScore(media) {
+    if (!media) return -Infinity;
+
+    const rect = media.getBoundingClientRect();
+    if (rect.width < 120 || rect.height < 120) return -Infinity;
+
+    const viewportCenterX = window.innerWidth / 2;
+    const viewportCenterY = window.innerHeight / 2;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const distance = Math.hypot(centerX - viewportCenterX, centerY - viewportCenterY);
+    const containsViewportCenter =
+      viewportCenterX >= rect.left && viewportCenterX <= rect.right &&
+      viewportCenterY >= rect.top && viewportCenterY <= rect.bottom;
+
+    let score = rect.width * rect.height - distance * 140;
+    if (containsViewportCenter) score += 250000;
+    if (media.tagName === 'IMG') score += 2500;
+    if (media.tagName === 'VIDEO' && !media.paused) score += 1500;
+    if (media === GlobalState.currentVideo) score += 2000;
+    return score;
+  }
+
+  function buildMediaContext(container, media = null) {
+    if (!container) return null;
+
+    const resolvedMedia = media && container.contains(media)
+      ? media
+      : getBestVisibleMediaInContainer(container);
+
+    if (!resolvedMedia) return null;
+
+    const mediaInfo = buildMediaInfo(container, resolvedMedia);
+    if (!mediaInfo?.type || mediaInfo.type === 'unknown') return null;
+
+    let score = scorePostContainerCandidate(container, resolvedMedia, 0) + getViewportMediaScore(resolvedMedia);
+    if (mediaInfo.surface === MEDIA_SURFACES.REEL && mediaInfo.type === 'video') score += 400000;
+    if (mediaInfo.surface === MEDIA_SURFACES.REEL && mediaInfo.type !== 'video') score -= 400000;
+    if (mediaInfo.type === 'carousel') score += 3000;
+    if (resolvedMedia.tagName === 'IMG' && mediaInfo.type !== 'video') score += 1250;
+    if (resolvedMedia.tagName === 'VIDEO' && mediaInfo.type === 'video' && resolvedMedia.paused) score -= 300;
+
+    return {
+      container,
+      media: resolvedMedia,
+      mediaInfo,
+      score
+    };
+  }
+
+  function getMostRelevantMediaContext() {
+    const contexts = [];
+    const seenContainers = new Set();
+
+    const addContext = (container, media = null) => {
+      if (!container || seenContainers.has(container)) return;
+      seenContainers.add(container);
+
+      const context = buildMediaContext(container, media);
+      if (context) {
+        contexts.push(context);
+      }
+    };
+
+    const explicitMediaCandidates = [
+      findActiveImage(),
+      findActiveVideo(),
+      GlobalState.currentVideo?.isConnected ? GlobalState.currentVideo : null
+    ].filter(Boolean);
+
+    for (const media of explicitMediaCandidates) {
+      addContext(findPostContainerFromElement(media), media);
+    }
+
+    const visibleContainers = Array.from(document.querySelectorAll('article, div[role="dialog"], section')).slice(0, 60);
+    for (const container of visibleContainers) {
+      if (!isVisibleUiElement(container)) continue;
+
+      const rect = container.getBoundingClientRect();
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+
+      addContext(container);
+    }
+
+    if (contexts.length === 0) return null;
+    contexts.sort((a, b) => b.score - a.score);
+    return contexts[0];
+  }
+
+  function detectCurrentMedia() {
+    const pageSurface = getMediaSurface();
+    if (pageSurface === MEDIA_SURFACES.REEL || pageSurface === MEDIA_SURFACES.TV) {
+      const reelVideo = findActiveVideo() || (GlobalState.currentVideo?.isConnected ? GlobalState.currentVideo : null);
+      if (reelVideo) {
+        const reelContainer = findPostContainerFromElement(reelVideo);
+        const reelMedia = buildMediaInfo(reelContainer, reelVideo);
+        if (reelMedia?.type === 'video') {
+          return reelMedia;
+        }
+
+        return {
+          type: 'video',
+          video: reelVideo,
+          container: reelContainer,
+          shortcode: getCurrentShortcode(reelContainer),
+          surface: pageSurface
+        };
+      }
+    }
+
+    const context = getMostRelevantMediaContext();
+    if (context?.mediaInfo) {
+      return context.mediaInfo;
+    }
+
+    const activeVideo = findActiveVideo();
+    const video = activeVideo || (GlobalState.currentVideo?.isConnected ? GlobalState.currentVideo : null);
+    const preferredMedia = video || findActiveImage();
+    const container = preferredMedia ? findPostContainerFromElement(preferredMedia) : findPostContainer();
+
+    if (!container) {
+      if (preferredMedia?.tagName === 'VIDEO') {
+        return { type: 'video', video: preferredMedia, container: null, surface: getMediaSurface() };
+      }
+      if (preferredMedia?.tagName === 'IMG') {
+        return { type: 'image', img: preferredMedia, container: null, surface: getMediaSurface() };
+      }
+      return { type: 'unknown' };
+    }
+
+    return buildMediaInfo(container, preferredMedia || getBestVisibleMediaInContainer(container));
+  }
+
+  function detectMediaFromInteraction(target, point = null) {
+    const pointInfo = point ? detectMediaFromPoint(point.x, point.y) : null;
+    const targetInfo = detectMediaFromElement(target, point);
+
+    return pointInfo || targetInfo || { type: 'unknown' };
+  }
+
+  function detectMediaFromPoint(x, y) {
+    if (typeof document.elementsFromPoint !== 'function') return null;
+
+    const elements = document.elementsFromPoint(x, y);
+    for (const el of elements) {
+      const info = detectMediaFromElement(el, { x, y });
+      if (info?.type && info.type !== 'unknown') {
+        return info;
+      }
+    }
+
+    return null;
+  }
+
+  function detectMediaFromElement(target, point = null) {
+    if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
+    if (target.closest?.('#angel-hover-download-btn, #angel-ctrl, .angel-inline-download-slot')) return null;
+
+    const directMedia = getClosestMediaElement(target);
+    const container = findPostContainerFromElement(directMedia || target);
+    const media = directMedia || getBestVisibleMediaInContainer(container, point);
+
+    if (!container && !media) return null;
+
+    return buildMediaInfo(container || findPostContainerFromElement(media), media);
+  }
+
+  function buildMediaInfo(container, preferredMedia = null) {
+    const inferredContainer = container || preferredMedia?.closest?.('article, div[role="dialog"], [role="presentation"], section');
+    const surface = getMediaSurface(inferredContainer);
+
+    if (!container && preferredMedia) {
+      return preferredMedia.tagName === 'VIDEO'
+        ? { type: 'video', video: preferredMedia, container: null, surface }
+        : { type: 'image', img: preferredMedia, container: null, surface };
+    }
+
+    if (!container) return { type: 'unknown' };
+
+    const hasCarouselArrows = !!findCarouselNavButton(container, 'next') || !!findCarouselNavButton(container, 'previous');
+    const hasSlideCounter = Array.from(container.querySelectorAll('span')).some(
+      span => /^\d+\s*\/\s*\d+$/.test(span.textContent?.trim() || '')
+    );
+    const hasTablist = container.querySelector('[role="tablist"]') !== null;
+    const isCarousel = hasCarouselArrows || hasSlideCounter || hasTablist;
+    const shortcode = getCurrentShortcode(container);
+
+    if (isCarousel) {
+      const visibleVideo = getVisibleCarouselVideo(container);
+      return {
+        type: 'carousel',
+        container,
+        video: visibleVideo,
+        hasVideo: !!visibleVideo,
+        shortcode,
+        surface
+      };
+    }
+
+    const media = preferredMedia || getBestVisibleMediaInContainer(container);
+    if (media?.tagName === 'VIDEO') {
+      return { type: 'video', video: media, container, shortcode, surface };
+    }
+    if (media?.tagName === 'IMG') {
+      return { type: 'image', img: media, container, shortcode, surface };
+    }
+
+    return { type: 'unknown' };
+  }
+
+  function isLikelyMediaImage(el) {
+    if (!el || el.tagName !== 'IMG') return false;
+    if (!isUsableMediaElement(el)) return false;
+
+    const src = el.currentSrc || el.src || '';
+    if (!src && !el.srcset) return false;
+
+    const alt = (el.getAttribute('alt') || '').toLowerCase();
+    if (alt.includes('profile picture') || alt.includes('instagram')) return false;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 220 && rect.height <= 220 && Math.abs(rect.width - rect.height) < 24) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function isDownloadableMediaElement(el) {
+    if (!el) return false;
+    if (el.tagName === 'VIDEO') return isUsableMediaElement(el);
+    if (el.tagName === 'IMG') return isLikelyMediaImage(el);
+    return false;
+  }
+
+  function getClosestMediaElement(target) {
+    if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
+    const media = target.closest?.('video, img');
+    return isDownloadableMediaElement(media) ? media : null;
+  }
+
+  function getPostContainerCandidates(element, maxDepth = 10) {
+    const candidates = [];
+    const seen = new Set();
+    let current = element;
+
+    for (let depth = 0; depth < maxDepth && current; depth++, current = current.parentElement) {
+      if (current.nodeType !== Node.ELEMENT_NODE || seen.has(current)) continue;
+      seen.add(current);
+      candidates.push({ node: current, depth });
+
+      if (current.matches?.('main, main[role="main"], body')) {
+        break;
+      }
+    }
+
+    return candidates;
+  }
+
+  function scorePostContainerCandidate(container, sourceElement = null, depth = 0) {
+    if (!container || !container.isConnected) return -Infinity;
+    if (!getBestVisibleMediaInContainer(container)) return -Infinity;
+
+    let score = 0;
+    const role = container.getAttribute?.('role') || '';
+
+    if (container.tagName === 'ARTICLE') score += 900;
+    if (role === 'dialog') score += 825;
+    if (container.tagName === 'SECTION') score += 250;
+    if (role === 'presentation') score += 90;
+    if (container.tagName === 'MAIN') score -= 150;
+
+    if (container.querySelector('a[href*="/p/"], a[href*="/reel/"], a[href*="/reels/"], a[href*="/tv/"]')) {
+      score += 260;
+    }
+    if (container.querySelector('time[datetime]')) score += 120;
+    if (container.querySelector('[role="tablist"]') || findCarouselNavButton(container, 'next') || findCarouselNavButton(container, 'previous')) {
+      score += 220;
+    }
+    if (findActionReferenceInContainer(container, ['share', 'comment', 'like', 'save', 'menu'])) {
+      score += 520;
+    }
+
+    score += Math.min(container.querySelectorAll('video, img').length, 8) * 18;
+    if (sourceElement && container.contains(sourceElement)) score += 40;
+
+    return score - (depth * 24);
+  }
+
+  function findPostContainerFromElement(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
+
+    const candidates = getPostContainerCandidates(element);
+    let bestCandidate = null;
+    let bestScore = -Infinity;
+
+    for (const candidate of candidates) {
+      const score = scorePostContainerCandidate(candidate.node, element, candidate.depth);
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = candidate.node;
+      }
+    }
+
+    if (bestCandidate) {
+      return bestCandidate;
+    }
+
+    let parent = element;
+    for (let i = 0; i < 8 && parent; i++) {
+      if (getBestVisibleMediaInContainer(parent)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+
+    return null;
+  }
+
+  function getBestVisibleMediaInContainer(container, point = null) {
+    if (!container) return null;
+
+    const mediaElements = Array.from(container.querySelectorAll('video, img'))
+      .filter(isDownloadableMediaElement);
+
+    if (mediaElements.length === 0) return null;
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const media of mediaElements) {
+      const rect = media.getBoundingClientRect();
+      let score = rect.width * rect.height;
+
+      if (point) {
+        const inside =
+          point.x >= rect.left &&
+          point.x <= rect.right &&
+          point.y >= rect.top &&
+          point.y <= rect.bottom;
+        const dx = (rect.left + rect.width / 2) - point.x;
+        const dy = (rect.top + rect.height / 2) - point.y;
+        score += inside ? 1000000 : 0;
+        score -= Math.sqrt(dx * dx + dy * dy) * 100;
+      }
+
+      if (media.tagName === 'VIDEO') score += 5000;
+      if (media === GlobalState.currentVideo) score += 10000;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = media;
+      }
+    }
+
+    return best;
+  }
+
+  function isUsableMediaElement(el) {
+    if (!el) return false;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 120 || rect.height < 120) return false;
+    if (rect.bottom <= 0 || rect.right <= 0 || rect.top >= window.innerHeight || rect.left >= window.innerWidth) return false;
+
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function getVisibleCarouselVideo(container) {
+    if (!container) return null;
+
+    const videos = Array.from(container.querySelectorAll('video')).filter(isUsableMediaElement);
+    if (videos.length === 0) return null;
+
+    videos.sort((a, b) => {
+      const aRect = a.getBoundingClientRect();
+      const bRect = b.getBoundingClientRect();
+      return (bRect.width * bRect.height) - (aRect.width * aRect.height);
+    });
+
+    return videos[0];
+  }
+
+  function findPostContainer() {
+    const context = getMostRelevantMediaContext();
+    if (context?.container) return context.container;
+
+    const activeVideo = findActiveVideo();
+    const video = activeVideo || (GlobalState.currentVideo?.isConnected ? GlobalState.currentVideo : null);
+    if (video) return findPostContainerFromElement(video);
+
+    const activeImg = findActiveImage();
+    if (activeImg) return findPostContainerFromElement(activeImg);
+
+    return document.querySelector('article') || document.querySelector('main [role="main"] article');
+  }
+
+  function getBestImageUrl(imgEl) {
+    if (!imgEl) return null;
+
+    if (imgEl.srcset) {
+      const sources = imgEl.srcset.split(',').map(s => {
+        const parts = s.trim().split(' ');
+        return { url: parts[0], width: parseInt(parts[1]) || 0 };
+      });
+      sources.sort((a, b) => b.width - a.width);
+      if (sources[0]?.url) {
+        return { url: sources[0].url, width: sources[0].width };
+      }
+    }
+
+    return { url: imgEl.src, width: 0 };
+  }
+
+  function getVisibleCarouselImage(container) {
+    if (!container) return null;
+
+    const imgs = Array.from(container.querySelectorAll('img')).filter(isLikelyMediaImage);
+    if (imgs.length === 0) return null;
+
+    const containerRect = container.getBoundingClientRect();
+    const containerCenterX = containerRect.left + containerRect.width / 2;
+    const containerCenterY = containerRect.top + containerRect.height / 2;
+    let bestImage = null;
+    let bestScore = -Infinity;
+
+    for (const img of imgs) {
+      const rect = img.getBoundingClientRect();
+      if (rect.width <= 100 || rect.height <= 100) continue;
+      if (rect.bottom <= containerRect.top || rect.top >= containerRect.bottom) continue;
+      if (rect.right <= containerRect.left || rect.left >= containerRect.right) continue;
+
+      const style = window.getComputedStyle(img);
+      if (style.opacity === '0' || style.display === 'none' || style.visibility === 'hidden') continue;
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const containsContainerCenter =
+        containerCenterX >= rect.left && containerCenterX <= rect.right &&
+        containerCenterY >= rect.top && containerCenterY <= rect.bottom;
+
+      let score = rect.width * rect.height - Math.hypot(centerX - containerCenterX, centerY - containerCenterY) * 120;
+      if (containsContainerCenter) score += 200000;
+      if (img.closest('[aria-hidden="true"]')) score -= 100000;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestImage = img;
+      }
+    }
+
+    return bestImage || imgs[0] || null;
+  }
+
+  const CAROUSEL_NAV_LABEL_PATTERNS = Object.freeze({
+    next: [/next/i, /siguiente/i, /suivant/i, /weiter/i, /prossim/i, /seguinte/i],
+    previous: [/previous/i, /prev/i, /anterior/i, /précédent/i, /zurück/i, /precedent/i, /precedente/i]
+  });
+
+  function getCarouselNavButtons(container, direction) {
+    if (!container) return [];
+
+    const containerRect = container.getBoundingClientRect();
+    const sideThreshold = direction === 'next'
+      ? containerRect.left + containerRect.width * 0.65
+      : containerRect.left + containerRect.width * 0.35;
+
+    return Array.from(container.querySelectorAll('button, [role="button"]')).filter(button => {
+      if (!isVisibleUiElement(button)) return false;
+      if (button.closest?.('.angel-inline-download-slot')) return false;
+
+      const rect = button.getBoundingClientRect();
+      if (rect.width < 20 || rect.width > 84 || rect.height < 20 || rect.height > 84) return false;
+      if (rect.bottom <= containerRect.top || rect.top >= containerRect.bottom) return false;
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const verticallyAligned =
+        centerY >= containerRect.top + containerRect.height * 0.18 &&
+        centerY <= containerRect.bottom - containerRect.height * 0.18;
+      const onDesiredSide = direction === 'next' ? centerX >= sideThreshold : centerX <= sideThreshold;
+
+      return verticallyAligned && onDesiredSide;
+    });
+  }
+
+  function findCarouselNavButton(container, direction) {
+    const candidates = getCarouselNavButtons(container, direction);
+    if (candidates.length === 0) return null;
+
+    const patterns = CAROUSEL_NAV_LABEL_PATTERNS[direction] || [];
+    const labeledCandidates = candidates.filter(button => {
+      const label = getActionElementLabel(button);
+      return patterns.some(pattern => pattern.test(label));
+    });
+
+    const pool = labeledCandidates.length > 0 ? labeledCandidates : candidates;
+    const containerRect = container.getBoundingClientRect();
+    const targetX = direction === 'next' ? containerRect.right : containerRect.left;
+    const targetY = containerRect.top + containerRect.height / 2;
+
+    pool.sort((a, b) => {
+      const aRect = a.getBoundingClientRect();
+      const bRect = b.getBoundingClientRect();
+      const aDist = Math.hypot((aRect.left + aRect.width / 2) - targetX, (aRect.top + aRect.height / 2) - targetY);
+      const bDist = Math.hypot((bRect.left + bRect.width / 2) - targetX, (bRect.top + bRect.height / 2) - targetY);
+      return aDist - bDist;
+    });
+
+    return pool[0] || null;
+  }
+
+  function captureCurrentCarouselSlide(container) {
+    const visibleVideo = getVisibleCarouselVideo(container);
+    if (visibleVideo) {
+      const src = visibleVideo.currentSrc || visibleVideo.src;
+      if (!src) return null;
+
+      return {
+        url: src,
+        width: visibleVideo.videoWidth || 0,
+        isVideo: true,
+        signature: `video:${extractUrlKey(src) || src}`
+      };
+    }
+
+    const visibleImg = getVisibleCarouselImage(container);
+    if (!visibleImg) return null;
+
+    const best = getBestImageUrl(visibleImg);
+    if (!best?.url) return null;
+
+    return {
+      url: best.url,
+      width: best.width || 0,
+      isVideo: false,
+      signature: `image:${extractUrlKey(best.url) || best.url}`
+    };
+  }
+
+  async function moveCarousel(container, direction, previousSignature = null) {
+    const button = findCarouselNavButton(container, direction);
+    if (!button) return false;
+
+    const baselineSignature = previousSignature || captureCurrentCarouselSlide(container)?.signature || null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      button.click();
+      await sleep(350 + attempt * 100);
+
+      const nextSignature = captureCurrentCarouselSlide(container)?.signature || null;
+      if (nextSignature && nextSignature !== baselineSignature) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function getCurrentSlideIndex(container) {
+    if (!container) return 0;
+
+    const counterSpan = Array.from(container.querySelectorAll('span')).find(
+      span => /^\d+\s*\/\s*\d+$/.test(span.textContent?.trim() || '')
+    );
+    if (counterSpan) {
+      const match = counterSpan.textContent.trim().match(/^(\d+)/);
+      if (match) return parseInt(match[1]) - 1;
+    }
+
+    const tabs = container.querySelectorAll('[role="tablist"] [role="tab"]');
+    for (let i = 0; i < tabs.length; i++) {
+      if (tabs[i].getAttribute('aria-selected') === 'true') return i;
+    }
+
+    return 0;
+  }
+
+  function getTotalSlides(container) {
+    if (!container) return 1;
+
+    const counterSpan = Array.from(container.querySelectorAll('span')).find(
+      span => /^\d+\s*\/\s*\d+$/.test(span.textContent?.trim() || '')
+    );
+    if (counterSpan) {
+      const match = counterSpan.textContent.trim().match(/\/\s*(\d+)$/);
+      if (match) return parseInt(match[1]);
+    }
+
+    const tabs = container.querySelectorAll('[role="tablist"] [role="tab"]');
+    if (tabs.length > 0) return tabs.length;
+
+    const slideButtons = Array.from(container.querySelectorAll('button, [role="button"]')).filter(button => {
+      const label = getActionElementLabel(button);
+      return /slide|photo|image/i.test(label);
+    });
+    if (slideButtons.length > 1) return slideButtons.length;
+
+    return 1;
+  }
+
+  async function getAllCarouselSlides(container) {
+    const slides = [];
+    const seenSignatures = new Set();
+    const originalSlide = captureCurrentCarouselSlide(container);
+
+    if (!originalSlide) {
+      return [];
+    }
+
+    for (let i = 0; i < 20; i++) {
+      const currentSlide = captureCurrentCarouselSlide(container);
+      if (!currentSlide?.signature) break;
+      const moved = await moveCarousel(container, 'previous', currentSlide.signature);
+      if (!moved) break;
+    }
+
+    for (let i = 0; i < 20; i++) {
+      const slide = captureCurrentCarouselSlide(container);
+      if (!slide?.signature || seenSignatures.has(slide.signature)) break;
+
+      seenSignatures.add(slide.signature);
+      slides.push(slide.isVideo
+        ? { url: slide.url, width: slide.width, isVideo: true }
+        : { url: slide.url, width: slide.width });
+
+      const moved = await moveCarousel(container, 'next', slide.signature);
+      if (!moved) {
+        break;
+      }
+    }
+
+    if (slides.length === 0) {
+      slides.push(originalSlide.isVideo
+        ? { url: originalSlide.url, width: originalSlide.width, isVideo: true }
+        : { url: originalSlide.url, width: originalSlide.width });
+    }
+
+    if (originalSlide.signature) {
+      for (let i = 0; i < 20; i++) {
+        const currentSlide = captureCurrentCarouselSlide(container);
+        if (currentSlide?.signature === originalSlide.signature) break;
+        const moved = await moveCarousel(container, 'previous', currentSlide?.signature || null);
+        if (!moved) break;
+      }
+    }
+
+    return slides.filter(Boolean);
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  const RESERVED_INSTAGRAM_PATHS = new Set([
+    'accounts', 'direct', 'explore', 'reel', 'reels', 'p', 'stories', 'tv'
+  ]);
+
+  function sanitizeFilenameSegment(value) {
+    const raw = String(value || '');
+    const normalized = typeof raw.normalize === 'function'
+      ? raw.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      : raw;
+
+    return normalized
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+      .replace(/\s+/g, '_')
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .replace(/-{2,}/g, '-')
+      .replace(/_{2,}/g, '_')
+      .replace(/^[-_.]+|[-_.]+$/g, '');
+  }
+
+  function extractUsernameFromHref(href) {
+    if (!href || typeof href !== 'string') return '';
+
+    try {
+      const pathname = href.startsWith('http') ? new URL(href).pathname : href;
+      const [firstSegment] = pathname.split('/').filter(Boolean);
+      if (!firstSegment) return '';
+
+      const normalized = firstSegment.replace(/^@/, '');
+      if (RESERVED_INSTAGRAM_PATHS.has(normalized.toLowerCase())) return '';
+      return sanitizeFilenameSegment(normalized);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function normalizeUsernameCandidate(value) {
+    if (!value) return '';
+
+    const normalized = sanitizeFilenameSegment(String(value)
+      .replace(/^@/, '')
+      .replace(/\s+on Instagram.*$/i, '')
+      .trim());
+
+    if (!normalized || RESERVED_INSTAGRAM_PATHS.has(normalized.toLowerCase())) {
+      return '';
+    }
+
+    return normalized;
+  }
+
+  function getMediaUsername(container = null) {
+    const selectors = ['header a[href^="/"]', 'a[href^="/"]'];
+
+    if (container) {
+      for (const selector of selectors) {
+        const links = Array.from(container.querySelectorAll(selector)).slice(0, 8);
+        for (const link of links) {
+          const usernameFromHref = extractUsernameFromHref(link.getAttribute('href'));
+          if (usernameFromHref) return usernameFromHref;
+
+          const usernameFromText = normalizeUsernameCandidate(link.textContent);
+          if (usernameFromText) return usernameFromText;
+        }
+      }
+    }
+
+    const storyPathMatch = window.location.pathname.match(/^\/stories\/(?!highlights\/)([^/]+)/);
+    if (storyPathMatch?.[1]) {
+      const storyUsername = normalizeUsernameCandidate(storyPathMatch[1]);
+      if (storyUsername) return storyUsername;
+    }
+
+    const pageUsername = extractUsernameFromHref(window.location.pathname);
+    if (pageUsername) return pageUsername;
+
+    const metaTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '';
+    const metaMatch = metaTitle.match(/^@?([^:]+?)\s+on Instagram/i);
+    if (metaMatch?.[1]) {
+      const metaUsername = normalizeUsernameCandidate(metaMatch[1]);
+      if (metaUsername) return metaUsername;
+    }
+
+    const headerTitle = document.querySelector('main header h2, header h2, header h1')?.textContent;
+    const headerUsername = normalizeUsernameCandidate(headerTitle);
+    return headerUsername || 'instagram';
+  }
+
+  function getMediaTimestamp(container = null) {
+    const containerTime = container?.querySelector('time[datetime]')?.getAttribute('datetime');
+    if (containerTime) return containerTime;
+
+    const pageTime = document.querySelector('time[datetime]')?.getAttribute('datetime');
+    if (pageTime) return pageTime;
+
+    return document.querySelector('meta[property="article:published_time"]')?.getAttribute('content') || null;
+  }
+
+  function formatDownloadTimestamp(value) {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) {
+      return formatDownloadTimestamp();
+    }
+
+    const year = String(date.getFullYear());
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+  }
+
+  function normalizeDownloadQuality(value) {
+    const quality = String(value || 'original')
+      .replace(/×/g, 'x')
+      .replace(/\?/g, 'unknown')
+      .replace(/px\b/ig, 'w');
+
+    return sanitizeFilenameSegment(quality) || 'original';
+  }
+
+  function getFileExtensionFromUrl(url, fallback = 'bin') {
+    if (!url || typeof url !== 'string' || url.startsWith('blob:')) {
+      return fallback;
+    }
+
+    try {
+      const pathname = new URL(url, window.location.href).pathname;
+      const match = pathname.match(/\.([A-Za-z0-9]{2,5})(?:$|\?)/);
+      if (!match?.[1]) return fallback;
+
+      const ext = match[1].toLowerCase();
+      return ext === 'jpeg' ? 'jpg' : ext;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function resolveDownloadType(mediaInfo, options = {}) {
+    const baseType = options.type || mediaInfo.type || 'media';
+    const surface = options.surface || mediaInfo.surface || getMediaSurface(mediaInfo.container);
+
+    if (options.parentType === 'carousel') {
+      if (baseType === 'video') return 'carousel-video';
+      if (baseType === 'image') return 'carousel-photo';
+      return 'carousel';
+    }
+
+    if (surface === MEDIA_SURFACES.STORY) {
+      return baseType === 'video' ? 'story-video' : 'story-photo';
+    }
+
+    if (surface === MEDIA_SURFACES.HIGHLIGHT) {
+      return baseType === 'video' ? 'highlight-video' : 'highlight-photo';
+    }
+
+    if (surface === MEDIA_SURFACES.REEL && baseType === 'video') return 'reel';
+    if (surface === MEDIA_SURFACES.TV && baseType === 'video') return 'igtv';
+    if (baseType === 'video') return 'video';
+    if (baseType === 'image') return 'photo';
+    if (baseType === 'carousel') return 'carousel';
+    return sanitizeFilenameSegment(baseType) || 'media';
+  }
+
+  function buildDownloadFilename(mediaInfo, options = {}) {
+    const extension = sanitizeFilenameSegment(
+      options.extension || getFileExtensionFromUrl(options.url, options.type === 'video' ? 'mp4' : 'jpg')
+    ) || 'bin';
+    const template = (GlobalState.downloadFilenameTemplate || CONFIG.DOWNLOAD.DEFAULT_TEMPLATE || '').trim() || CONFIG.DOWNLOAD.DEFAULT_TEMPLATE;
+    const shortcode = sanitizeFilenameSegment(mediaInfo.shortcode || getCurrentShortcode(mediaInfo.container) || `instagram_${Date.now()}`);
+    const indexValue = Number.isInteger(options.index)
+      ? options.index
+      : (Number.isInteger(mediaInfo.carouselIndex) ? mediaInfo.carouselIndex : null);
+    const indexToken = indexValue && GlobalState.downloadCarouselIndex
+      ? `_${String(indexValue).padStart(2, '0')}`
+      : '';
+    const tokens = {
+      username: getMediaUsername(mediaInfo.container),
+      shortcode: shortcode || `instagram_${Date.now()}`,
+      type: resolveDownloadType(mediaInfo, options),
+      quality: normalizeDownloadQuality(options.quality),
+      index: indexToken,
+      date: formatDownloadTimestamp(options.timestamp || getMediaTimestamp(mediaInfo.container))
+    };
+
+    let baseName = template
+      .replace(/\{(username|shortcode|type|quality|index|date)\}/g, (_, key) => tokens[key] || '')
+      .replace(/\{[^}]+\}/g, '')
+      .replace(/[_-]{2,}/g, '_');
+
+    baseName = sanitizeFilenameSegment(baseName);
+
+    if (!baseName) {
+      baseName = sanitizeFilenameSegment([
+        'angel',
+        tokens.username,
+        tokens.shortcode,
+        tokens.type,
+        tokens.quality
+      ].filter(Boolean).join('_'));
+    }
+
+    if (tokens.index && !template.includes('{index}')) {
+      baseName = sanitizeFilenameSegment(`${baseName}${tokens.index}`);
+    }
+
+    const maxBaseLength = Math.max(32, CONFIG.DOWNLOAD.MAX_FILENAME_LENGTH - extension.length - 1);
+    if (baseName.length > maxBaseLength) {
+      baseName = baseName.slice(0, maxBaseLength).replace(/[-_.]+$/g, '');
+    }
+
+    return `${baseName || 'angel_download'}.${extension}`;
+  }
+
+  function showCarouselDownloadPrompt(mediaInfo) {
+    const container = mediaInfo.container;
+    const totalSlides = getTotalSlides(container);
+    const currentSlide = getCurrentSlideIndex(container) + 1;
+    const visibleVideo = getVisibleCarouselVideo(container);
+    const isVideoSlide = visibleVideo !== null;
+
+    const existing = document.getElementById('angel-download-prompt');
+    if (existing) existing.remove();
+
+    const prompt = document.createElement('div');
+    prompt.id = 'angel-download-prompt';
+    prompt.className = 'ir-download-prompt';
+    prompt.innerHTML = `
+      <div class="ir-dp-backdrop"></div>
+      <div class="ir-dp-dialog">
+        <div class="ir-dp-header">
+          <span class="ir-dp-icon">⬇️</span>
+          <h3>Download Carousel</h3>
+          <button class="ir-dp-close" title="Close">&times;</button>
+        </div>
+        <div class="ir-dp-body">
+          <p>Slide ${currentSlide} of ${totalSlides}${isVideoSlide ? ' (Video)' : ' (Photo)'}</p>
+          <div class="ir-dp-actions">
+            <button class="ir-dp-btn ir-dp-btn-primary" data-action="current">
+              <span>Current Slide</span>
+              <kbd>${currentSlide} slide of ${totalSlides}</kbd>
+            </button>
+            <button class="ir-dp-btn ir-dp-btn-secondary" data-action="all">
+              <span>All Slides</span>
+              <kbd>${totalSlides} files</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(prompt);
+
+    prompt.querySelector('.ir-dp-close').onclick = () => prompt.remove();
+    prompt.querySelector('.ir-dp-backdrop').onclick = () => prompt.remove();
+
+    prompt.querySelector('[data-action="current"]').onclick = () => {
+      prompt.remove();
+      downloadCurrentCarouselSlide(mediaInfo);
+    };
+
+    prompt.querySelector('[data-action="all"]').onclick = () => {
+      prompt.remove();
+      downloadAllCarouselSlides(mediaInfo);
+    };
+
+    document.addEventListener('keydown', function dpKeyHandler(e) {
+      if (e.key === 'Escape') {
+        prompt.remove();
+        document.removeEventListener('keydown', dpKeyHandler);
+      }
+    });
+  }
+
+  function downloadCurrentCarouselSlide(mediaInfo) {
+    const container = mediaInfo.container;
+    const slideIndex = getCurrentSlideIndex(container) + 1;
+
+    const video = getVisibleCarouselVideo(container);
+    if (video) {
+      downloadVideo({
+        type: 'video',
+        video,
+        container,
+        shortcode: mediaInfo.shortcode,
+        carouselIndex: slideIndex,
+        parentType: 'carousel'
+      });
+      return;
+    }
+
+    const img = getVisibleCarouselImage(container);
+    if (img) {
+      const best = getBestImageUrl(img);
+      const filename = buildDownloadFilename({
+        type: 'image',
+        img,
+        container,
+        shortcode: mediaInfo.shortcode,
+        carouselIndex: slideIndex,
+        parentType: 'carousel'
+      }, {
+        type: 'image',
+        parentType: 'carousel',
+        index: slideIndex,
+        quality: best.width > 0 ? `${best.width}px` : 'original',
+        url: best.url,
+        extension: getFileExtensionFromUrl(best.url, 'jpg')
+      });
+
+      downloadImageFile(best.url, filename, best.width);
+      return;
+    }
+
+    showToast('Could not find media on current slide', '⚠️');
+  }
+
+  async function downloadAllCarouselSlides(mediaInfo) {
+    showToast('Collecting slides...', '⬇️');
+
+    try {
+      const slides = await getAllCarouselSlides(mediaInfo.container);
+
+      if (slides.length === 0) {
+        showToast('No slides found', '⚠️');
+        return;
+      }
+
+      const shortcode = mediaInfo.shortcode || getCurrentShortcode(mediaInfo.container) || `post_${Date.now()}`;
+      let downloaded = 0;
+
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        if (!slide || !slide.url) continue;
+
+        const ext = slide.isVideo ? 'mp4' : 'jpg';
+        const label = slide.width ? `${slide.width}px` : 'original';
+        const filename = buildDownloadFilename({
+          type: slide.isVideo ? 'video' : 'image',
+          container: mediaInfo.container,
+          shortcode,
+          carouselIndex: i + 1,
+          parentType: 'carousel'
+        }, {
+          type: slide.isVideo ? 'video' : 'image',
+          parentType: 'carousel',
+          index: i + 1,
+          quality: label,
+          url: slide.url,
+          extension: ext
+        });
+
+        const success = await downloadFileAsBlob(slide.url, filename, { saveAs: false });
+        if (success) downloaded++;
+
+        if (i < slides.length - 1) {
+          await sleep(500);
+        }
+      }
+
+      showToast(`Downloaded ${downloaded}/${slides.length} slides`, '✅');
+    } catch (err) {
+      log('Download all slides error:', err);
+      showToast('Error downloading slides', '⚠️');
+    }
+  }
+
+  function startDownload(downloadOptions, onComplete) {
+    const complete = (downloadId, errorMessage = null) => {
+      if (typeof onComplete === 'function') {
+        onComplete(downloadId, errorMessage);
+      }
+    };
+
+    try {
+      if (typeof chrome !== 'undefined' && chrome.downloads?.download) {
+        chrome.downloads.download(downloadOptions, (downloadId) => {
+          complete(downloadId, chrome.runtime.lastError?.message || null);
+        });
+        return;
+      }
+
+      chrome.runtime.sendMessage({ action: 'angelDownloadUrl', options: downloadOptions }, (response) => {
+        const errorMessage = chrome.runtime.lastError?.message ||
+          (!response?.success ? response?.error || 'Download failed' : null);
+        complete(response?.downloadId || null, errorMessage);
+      });
+    } catch (err) {
+      log('Download error:', err);
+      complete(null, err?.message || 'Download failed');
+    }
+  }
+
+  function isBlobUrl(url) {
+    return typeof url === 'string' && url.startsWith('blob:');
+  }
+
+  function isHttpUrl(url) {
+    return typeof url === 'string' && /^https?:\/\//i.test(url);
+  }
+
+  function getPreferredVideoDownloadUrl(videoInfo) {
+    if (!videoInfo) return null;
+
+    const candidates = [videoInfo.downloadUrl, videoInfo.url]
+      .filter(url => typeof url === 'string' && url.length > 0);
+
+    for (const candidate of candidates) {
+      if (isHttpUrl(candidate) && !isBlobUrl(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  function isInstagramMediaUrl(url) {
+    if (!isHttpUrl(url)) return false;
+    try {
+      const { hostname } = new URL(url);
+      return hostname === 'instagram.com' ||
+        hostname.endsWith('.instagram.com') ||
+        hostname.includes('cdninstagram.com') ||
+        hostname.includes('fbcdn.net');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getDownloadHeaders(url) {
+    if (!isInstagramMediaUrl(url)) return [];
+
+    // chrome.downloads.download already sends cookies for the destination host.
+    // Passing Origin/Referer here causes the request to be rejected because those
+    // headers are not settable through the downloads API.
+    return [];
+  }
+
+  function triggerBlobDownload(blob, filename) {
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.rel = 'noopener';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  }
+
+  async function downloadViaFetchedBlob(url, filename) {
+    const fetchOptions = isHttpUrl(url)
+      ? { credentials: 'include', referrer: window.location.href }
+      : {};
+    const response = await fetch(url, fetchOptions);
+
+    if (!response.ok) {
+      throw new Error(`Media fetch failed (${response.status})`);
+    }
+
+    if (response.type === 'opaque') {
+      throw new Error('Media fetch returned an unreadable response');
+    }
+
+    const blob = await response.blob();
+    if (!blob || blob.size === 0) {
+      throw new Error('Media fetch returned an empty file');
+    }
+
+    triggerBlobDownload(blob, filename);
+  }
+
+  function downloadViaChrome(url, filename, options = {}) {
+    return new Promise((resolve) => {
+      const headers = getDownloadHeaders(url);
+      const downloadOptions = {
+        ...options,
+        url,
+        filename
+      };
+
+      if (headers.length > 0) {
+        downloadOptions.headers = headers;
+      }
+
+      startDownload(downloadOptions, (downloadId, errorMessage) => {
+        resolve({ downloadId, errorMessage });
+      });
+    });
+  }
+
+  async function downloadMediaFile(url, filename, options = {}) {
+    const preferBrowserDownload = !!options.saveAs && !isBlobUrl(url);
+
+    if (!preferBrowserDownload && (isBlobUrl(url) || isInstagramMediaUrl(url))) {
+      try {
+        await downloadViaFetchedBlob(url, filename);
+        return { success: true, method: 'blob' };
+      } catch (err) {
+        log('Fetched blob download failed:', err);
+        if (isBlobUrl(url)) {
+          return { success: false, error: err?.message || 'Blob download failed' };
+        }
+      }
+    }
+
+    const result = await downloadViaChrome(url, filename, options);
+    if (result.errorMessage && preferBrowserDownload && isInstagramMediaUrl(url)) {
+      try {
+        await downloadViaFetchedBlob(url, filename);
+        return { success: true, method: 'blob-fallback' };
+      } catch (err) {
+        log('Browser download fallback failed:', err);
+      }
+    }
+
+    return result.errorMessage
+      ? { success: false, error: result.errorMessage }
+      : { success: true, method: 'chrome', downloadId: result.downloadId };
+  }
+
+  async function downloadFileAsBlob(url, filename, options = {}) {
+    try {
+      const result = await downloadMediaFile(url, filename, options);
+      if (!result.success) {
+        log('Download failed:', result.error);
+      }
+      return result.success;
+    } catch (err) {
+      log('Download error:', err);
+      return false;
+    }
+  }
+
+  async function downloadVideo(mediaInfo) {
+    const video = mediaInfo.video;
+    if (!video) {
+      showToast('No video found', '⚠️');
+      return;
+    }
+
+    const currentSrc = video.currentSrc || video.src;
+    if (!currentSrc) {
+      showToast('No video source available', '⚠️');
+      return;
+    }
+
+    showToast('Finding best quality...', '⬇️');
+
+    let downloadUrl = null;
+    let qualityLabel = null;
+    const shortcode = mediaInfo.shortcode || getCurrentShortcode(mediaInfo.container);
+
+    const localShortcodeHD = getLocalHDForShortcode(shortcode);
+    const localShortcodeUrl = getPreferredVideoDownloadUrl(localShortcodeHD);
+    if (localShortcodeUrl) {
+      downloadUrl = localShortcodeUrl;
+      qualityLabel = `${localShortcodeHD.width || video.videoWidth || '?'}×${localShortcodeHD.height || video.videoHeight || '?'}`;
+      log('Download: Using shortcode-matched HD URL', qualityLabel);
+    }
+
+    const hdInfo = !downloadUrl && !isBlobUrl(currentSrc) ? findHDInfo(currentSrc) : null;
+    const interceptorDownloadUrl = getPreferredVideoDownloadUrl(hdInfo);
+    if (hdInfo && interceptorDownloadUrl) {
+      downloadUrl = interceptorDownloadUrl;
+      qualityLabel = `${hdInfo.width || video.videoWidth || '?'}×${hdInfo.height || video.videoHeight || '?'}`;
+      log('Download: Using HD interceptor URL', qualityLabel);
+    }
+
+    if (!downloadUrl && isHttpUrl(video._hdUrl) && !isBlobUrl(video._hdUrl)) {
+      downloadUrl = video._hdUrl;
+      const q = GlobalState.currentVideoQuality;
+      qualityLabel = q ? `${q.width}×${q.height}` : 'HD';
+      log('Download: Using stored HD URL from video element');
+    }
+
+    if (!downloadUrl || isBlobUrl(downloadUrl)) {
+      const requestedHD = await requestHDInfoFromPage(currentSrc, shortcode, 5000);
+      const requestedHDUrl = getPreferredVideoDownloadUrl(requestedHD);
+      if (requestedHDUrl) {
+        downloadUrl = requestedHDUrl;
+        qualityLabel = `${requestedHD.width || video.videoWidth || '?'}×${requestedHD.height || video.videoHeight || '?'}`;
+        log('Download: Using page-context HD response', qualityLabel);
+      }
+    }
+
+    if (!downloadUrl && isHttpUrl(currentSrc) && !isBlobUrl(currentSrc)) {
+      downloadUrl = currentSrc;
+      const w = video.videoWidth || '?';
+      const h = video.videoHeight || '?';
+      qualityLabel = `${w}×${h}`;
+      log('Download: Using current video source as fallback');
+    }
+
+    if (!downloadUrl) {
+      // Last resort: use the most recently intercepted HD URL from the page world
+      try {
+        const latestHD = window.__angel_hd?.getLatestHD?.();
+        if (latestHD?.url && isHttpUrl(latestHD.url) && !isBlobUrl(latestHD.url) && Date.now() - latestHD.timestamp < 60000) {
+          downloadUrl = latestHD.url;
+          qualityLabel = latestHD.width ? `${latestHD.width}×${latestHD.height}` : 'HD';
+          log('Download: Using latest intercepted HD URL as last resort');
+        }
+      } catch (e) { /* page-world may be unavailable */ }
+    }
+
+    if (!downloadUrl) {
+      showToast('Could not find a stable video URL. Try again.', '⚠️');
+      return;
+    }
+
+    const fileShortcode = shortcode || `reel_${Date.now()}`;
+    const filename = buildDownloadFilename({
+      ...mediaInfo,
+      type: 'video',
+      shortcode: fileShortcode
+    }, {
+      type: 'video',
+      parentType: mediaInfo.parentType,
+      index: mediaInfo.carouselIndex,
+      quality: qualityLabel,
+      url: downloadUrl,
+      extension: getFileExtensionFromUrl(downloadUrl, 'mp4')
+    });
+
+    await downloadVideoFile(downloadUrl, filename, qualityLabel);
+  }
+
+  async function downloadVideoFile(url, filename, qualityLabel) {
+    showToast(`Preparing ${qualityLabel}...`, '⬇️');
+
+    const result = await downloadMediaFile(url, filename, {
+      conflictAction: 'overwrite',
+      saveAs: GlobalState.downloadSaveAs
+    });
+    if (!result.success) {
+      log('Download failed:', result.error);
+      showToast('Download failed. Try again.', '⚠️');
+    } else {
+      showToast(`Download started (${qualityLabel})`, '✅');
+    }
+  }
+
+  function downloadImage(mediaInfo) {
+    const img = mediaInfo.img;
+    if (!img) {
+      showToast('No image found', '⚠️');
+      return;
+    }
+
+    const best = getBestImageUrl(img);
+    if (!best || !best.url) {
+      showToast('Could not find image URL', '⚠️');
+      return;
+    }
+
+    const shortcode = mediaInfo.shortcode || getCurrentShortcode(mediaInfo.container) || `photo_${Date.now()}`;
+    const qualityLabel = best.width > 0 ? `${best.width}px` : 'original';
+    const filename = buildDownloadFilename({
+      ...mediaInfo,
+      type: 'image',
+      shortcode
+    }, {
+      type: 'image',
+      parentType: mediaInfo.parentType,
+      index: mediaInfo.carouselIndex,
+      quality: qualityLabel,
+      url: best.url,
+      extension: getFileExtensionFromUrl(best.url, 'jpg')
+    });
+
+    downloadImageFile(best.url, filename, best.width);
+  }
+
+  async function downloadImageFile(url, filename, width) {
+    const qualityLabel = width > 0 ? `${width}px` : 'original';
+    showToast(`Preparing ${qualityLabel}...`, '⬇️');
+
+    const result = await downloadMediaFile(url, filename, { saveAs: GlobalState.downloadSaveAs });
+    if (!result.success) {
+      log('Download failed:', result.error);
+      showToast('Download failed', '⚠️');
+    } else {
+      showToast(`Download started (${qualityLabel})`, '✅');
+    }
+  }
+
+  function getMediaElementForDownloadButton(mediaInfo) {
+    if (!mediaInfo) return null;
+    if (mediaInfo.video && mediaInfo.video.isConnected) return mediaInfo.video;
+    if (mediaInfo.img && mediaInfo.img.isConnected) return mediaInfo.img;
+    if (mediaInfo.container?.isConnected) {
+      return getBestVisibleMediaInContainer(mediaInfo.container);
+    }
+    return null;
+  }
+
+  function hasInlineDownloadButtonForMedia(mediaInfo) {
+    if (!mediaInfo?.container) return false;
+
+    return Array.from(document.querySelectorAll('.angel-inline-download-slot')).some(slot => {
+      const slotContainer = slot._angelContainer;
+      return slotContainer === mediaInfo.container ||
+        (slotContainer?.contains?.(mediaInfo.container)) ||
+        mediaInfo.container.contains?.(slotContainer);
+    });
+  }
+
+  function setupMediaDownloadButtons() {
+    const existingBtn = document.getElementById('angel-hover-download-btn');
+    if (existingBtn) existingBtn.remove();
+
+    if (GlobalState.mediaDownloadHandlers) {
+      document.removeEventListener('mouseover', GlobalState.mediaDownloadHandlers.mouseover);
+      document.removeEventListener('mouseout', GlobalState.mediaDownloadHandlers.mouseout);
+      document.removeEventListener('contextmenu', GlobalState.mediaDownloadHandlers.contextmenu, true);
+      GlobalState.mediaDownloadHandlers = null;
+    }
+
+    // Floating hover button disabled — inline buttons handle all downloads
+    return;
+
+    const btn = document.createElement('button');
+    btn.id = 'angel-hover-download-btn';
+    btn.innerHTML = `${CONFIG.ICONS.DOWNLOAD}`;
+    btn.title = 'Download with ANGEL (.)';
+    btn.style.cssText = `
+      display: none;
+      position: fixed;
+      z-index: 999999;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      color: rgb(38, 38, 38);
+      border: 1px solid rgba(219, 219, 219, 0.9);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(10px);
+      transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+      pointer-events: auto;
+    `;
+    btn.onmouseenter = () => {
+      btn.style.background = 'rgba(255, 255, 255, 1)';
+      btn.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.18)';
+      btn.style.transform = 'scale(1.04)';
+    };
+    btn.onmouseleave = () => {
+      btn.style.background = 'rgba(255, 255, 255, 0.96)';
+      btn.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.15)';
+      btn.style.transform = 'scale(1)';
+    };
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerDownload(btn._mediaInfo || null);
+    };
+    document.body.appendChild(btn);
+
+    const positionButtonForMedia = (mediaInfo) => {
+      const mediaElement = getMediaElementForDownloadButton(mediaInfo);
+      if (!mediaElement) return false;
+
+      const rect = mediaElement.getBoundingClientRect();
+      btn._mediaInfo = mediaInfo;
+      btn.style.display = 'flex';
+      btn.style.top = `${Math.max(12, rect.top + 10)}px`;
+      btn.style.right = `${Math.max(12, window.innerWidth - rect.right + 10)}px`;
+      return true;
+    };
+
+    const refreshPinnedButton = () => {
+      const detectedMediaInfo = detectCurrentMedia();
+      const mediaInfo = detectedMediaInfo?.type && detectedMediaInfo.type !== 'unknown'
+        ? detectedMediaInfo
+        : btn._lastPinnedMediaInfo;
+      const hasMatchingInlineButton = hasInlineDownloadButtonForMedia(mediaInfo);
+      const shouldPin = !hasMatchingInlineButton &&
+        mediaInfo?.type && mediaInfo.type !== 'unknown' &&
+        mediaInfo.surface !== MEDIA_SURFACES.REEL;
+
+      if (!shouldPin) {
+        btn.dataset.pinned = 'false';
+        btn._lastPinnedMediaInfo = null;
+        if (btn.dataset.mode !== 'hover') {
+          btn.style.display = 'none';
+          btn.dataset.mode = 'hidden';
+        }
+        return;
+      }
+
+      if (positionButtonForMedia(mediaInfo)) {
+        btn._lastPinnedMediaInfo = mediaInfo;
+        btn.dataset.pinned = 'true';
+        btn.dataset.mode = 'pinned';
+      }
+    };
+
+    GlobalState.refreshMediaDownloadButton = refreshPinnedButton;
+
+    let hoverTimeout;
+    const handleMouseover = (e) => {
+      const point = { x: e.clientX, y: e.clientY };
+      const mediaInfo = detectMediaFromInteraction(e.target, point);
+      const target = getMediaElementForDownloadButton(mediaInfo);
+
+      if (target && mediaInfo?.type && mediaInfo.type !== 'unknown') {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = setTimeout(() => {
+          const rect = target.getBoundingClientRect();
+          btn.dataset.mode = 'hover';
+          btn.dataset.pinned = 'false';
+          btn._mediaInfo = mediaInfo;
+          btn.style.display = 'flex';
+          btn.style.top = `${Math.max(12, rect.top + 10)}px`;
+          btn.style.right = `${Math.max(12, window.innerWidth - rect.right + 10)}px`;
+        }, 300);
+      } else {
+        clearTimeout(hoverTimeout);
+        if (btn.dataset.pinned === 'true') {
+          refreshPinnedButton();
+        } else {
+          btn.style.display = 'none';
+          btn.dataset.mode = 'hidden';
+        }
+      }
+    };
+
+    const handleMouseout = (e) => {
+      const target = getClosestMediaElement(e.target);
+      const relatedMedia = getClosestMediaElement(e.relatedTarget);
+
+      if (target && !relatedMedia && !e.relatedTarget?.closest?.('#angel-hover-download-btn')) {
+        if (btn.dataset.pinned === 'true') {
+          refreshPinnedButton();
+        } else {
+          btn.style.display = 'none';
+          btn.dataset.mode = 'hidden';
+        }
+      }
+    };
+
+    const handleContextmenu = (e) => {
+      const mediaInfo = detectMediaFromInteraction(e.target, { x: e.clientX, y: e.clientY });
+      if (!mediaInfo?.type || mediaInfo.type === 'unknown') return;
+
+      GlobalState.contextDownloadMediaInfo = mediaInfo;
+      GlobalState.contextDownloadMediaAt = Date.now();
+    };
+
+    document.addEventListener('mouseover', handleMouseover);
+    document.addEventListener('mouseout', handleMouseout);
+    document.addEventListener('contextmenu', handleContextmenu, true);
+
+    refreshPinnedButton();
+
+    GlobalState.mediaDownloadHandlers = {
+      mouseover: handleMouseover,
+      mouseout: handleMouseout,
+      contextmenu: handleContextmenu
+    };
+  }
+
+  function isVisibleUiElement(el) {
+    if (!el || !el.isConnected) return false;
+    if (el.closest?.('#angel-overlay, #angel-backdrop, #angel-ctrl, #angel-hover-download-btn')) return false;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return false;
+
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function getActionElementLabel(el) {
+    if (!el) return '';
+
+    const labels = [
+      el.getAttribute?.('aria-label'),
+      el.getAttribute?.('title')
+    ];
+
+    const descendants = Array.from(el.querySelectorAll?.('[aria-label], [title]') || []).slice(0, 6);
+    for (const node of descendants) {
+      labels.push(node.getAttribute('aria-label'));
+      labels.push(node.getAttribute('title'));
+    }
+
+    return labels.filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function getActionKind(el) {
+    const label = getActionElementLabel(el);
+    for (const [action, patterns] of Object.entries(ACTION_LABEL_PATTERNS)) {
+      if (patterns.some(pattern => pattern.test(label))) {
+        return action;
+      }
+    }
+    return null;
+  }
+
+  function isInlineActionItem(el) {
+    if (!isVisibleUiElement(el)) return false;
+    if (el.classList?.contains('angel-inline-download-slot')) return false;
+    if (el.matches?.('button, a, [role="button"]')) return true;
+    return !!el.querySelector?.('button, a, [role="button"], svg, [aria-label]');
+  }
+
+  function findActionReferenceInContainer(container, preferredActions = ['share', 'comment', 'like', 'save']) {
+    if (!container) return null;
+
+    const nodes = Array.from(container.querySelectorAll('[aria-label], [title], button, a, [role="button"]'));
+    const candidates = [];
+    const seen = new Set();
+
+    for (const node of nodes) {
+      const clickable = node.matches?.('button, a, [role="button"]')
+        ? node
+        : node.closest?.('button, a, [role="button"]') || node;
+
+      if (!clickable || seen.has(clickable) || !isVisibleUiElement(clickable)) continue;
+      if (clickable.closest?.('.angel-inline-download-slot')) continue;
+
+      seen.add(clickable);
+      const action = getActionKind(clickable);
+      if (action) {
+        candidates.push({ action, element: clickable });
+      }
+    }
+
+    for (const action of preferredActions) {
+      const match = candidates.find(candidate => candidate.action === action);
+      if (match) return match;
+    }
+
+    return candidates[0] || null;
+  }
+
+  function findInlineMountFromActionElement(element, options = {}) {
+    const minSiblings = options.minSiblings ?? 2;
+    let current = element?.closest?.('button, a, [role="button"]') || element;
+
+    for (let depth = 0; depth < 8 && current?.parentElement; depth++) {
+      const parent = current.parentElement;
+      const siblingItems = Array.from(parent.children).filter(isInlineActionItem);
+      if (siblingItems.length >= minSiblings && siblingItems.length <= 8 && (siblingItems.length > 1 || depth > 0)) {
+        return { mount: parent, anchorItem: current };
+      }
+      current = parent;
+    }
+
+    return current?.parentElement ? { mount: current.parentElement, anchorItem: current } : null;
+  }
+
+  function getInlineActionSearchRoots(container) {
+    if (!container) return [];
+
+    const roots = [];
+    const seen = new Set();
+    let current = container;
+
+    for (let depth = 0; depth < 8 && current; depth++, current = current.parentElement) {
+      if (current.nodeType !== Node.ELEMENT_NODE || seen.has(current)) continue;
+      seen.add(current);
+      roots.push(current);
+
+      if (current.matches?.('main, main[role="main"], body')) {
+        break;
+      }
+    }
+
+    return roots;
+  }
+
+  function getInlineDownloadTitle(surface) {
+    switch (surface) {
+      case MEDIA_SURFACES.STORY:
+        return 'Download story with ANGEL';
+      case MEDIA_SURFACES.HIGHLIGHT:
+        return 'Download highlight with ANGEL';
+      case MEDIA_SURFACES.REEL:
+        return 'Download reel with ANGEL';
+      case MEDIA_SURFACES.POST:
+        return 'Download post with ANGEL';
+      default:
+        return 'Download with ANGEL';
+    }
+  }
+
+  function resolveInlineDownloadTarget() {
+    const mediaInfo = detectCurrentMedia();
+    if (!mediaInfo?.type || mediaInfo.type === 'unknown' || !mediaInfo.container) return null;
+
+    const surface = mediaInfo.surface || getMediaSurface(mediaInfo.container);
+
+    if (surface === MEDIA_SURFACES.STORY || surface === MEDIA_SURFACES.HIGHLIGHT) {
+      const storyRoot = mediaInfo.container.closest?.('section, [role="presentation"]') || mediaInfo.container;
+      const storyAction = findActionReferenceInContainer(storyRoot, ['menu', 'share', 'comment', 'like', 'save']) ||
+        findActionReferenceInContainer(mediaInfo.container, ['menu', 'share', 'comment', 'like', 'save']);
+      const fallbackCircle = storyRoot.querySelector('svg circle') || mediaInfo.container.querySelector('svg circle');
+      const actionElement = storyAction?.element || fallbackCircle;
+      if (!actionElement) return null;
+
+      const mountInfo = findInlineMountFromActionElement(actionElement, { minSiblings: 1 });
+      if (!mountInfo?.mount) return null;
+
+      return {
+        mount: mountInfo.mount,
+        referenceElement: mountInfo.anchorItem || actionElement,
+        mediaInfo,
+        surface
+      };
+    }
+
+    if (surface === MEDIA_SURFACES.REEL) {
+      const reelButtons = findReelActionButtons();
+      const reelReference = reelButtons.save || reelButtons.share || reelButtons.comment || reelButtons.like;
+      if (reelReference) {
+        const mountInfo = findInlineMountFromActionElement(reelReference, { minSiblings: 2 });
+        if (mountInfo?.mount) {
+          return {
+            mount: mountInfo.mount,
+            referenceElement: mountInfo.anchorItem || reelReference,
+            mediaInfo,
+            surface
+          };
+        }
+      }
+    }
+
+    let actionReference = null;
+    for (const searchRoot of getInlineActionSearchRoots(mediaInfo.container)) {
+      actionReference = findActionReferenceInContainer(searchRoot, ['share', 'comment', 'like', 'save']);
+      if (actionReference?.element) break;
+    }
+
+    if (!actionReference?.element) return null;
+
+    const mountInfo = findInlineMountFromActionElement(actionReference.element, { minSiblings: 2 });
+    if (!mountInfo?.mount) return null;
+
+    return {
+      mount: mountInfo.mount,
+      referenceElement: mountInfo.anchorItem || actionReference.element,
+      mediaInfo,
+      surface
+    };
+  }
+
+  function createInlineDownloadButton(targetInfo) {
+    const slot = document.createElement('div');
+    slot.className = 'angel-inline-download-slot';
+    slot.dataset.angelSurface = targetInfo.surface || MEDIA_SURFACES.MEDIA;
+    slot._angelContainer = targetInfo.mediaInfo.container;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'angel-inline-download-btn';
+    button.innerHTML = CONFIG.ICONS.DOWNLOAD;
+    button.title = getInlineDownloadTitle(targetInfo.surface);
+    button.setAttribute('aria-label', button.title);
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      const container = slot._angelContainer && slot._angelContainer.isConnected
+        ? slot._angelContainer
+        : findPostContainer();
+      const mediaInfo = container
+        ? buildMediaInfo(container, getBestVisibleMediaInContainer(container))
+        : detectCurrentMedia();
+
+      triggerDownload(mediaInfo?.type && mediaInfo.type !== 'unknown' ? mediaInfo : targetInfo.mediaInfo);
+    });
+
+    slot.appendChild(button);
+    return slot;
+  }
+
+  function getInlineDownloadSyncSignature() {
+    const video = GlobalState.currentVideo;
+    const src = video?.currentSrc || video?.src || GlobalState.currentVideoSrc || '';
+    const slotCount = document.querySelectorAll('.angel-inline-download-slot').length;
+    return `${window.location.pathname}|${src}|${slotCount}`;
+  }
+
+  function syncInlineDownloadButtons(force = false) {
+    const now = Date.now();
+    const signature = getInlineDownloadSyncSignature();
+    const cache = GlobalState.inlineDownloadSyncCache;
+
+    if (!force &&
+      cache.signature === signature &&
+      cache.mount?.isConnected &&
+      now - cache.at < 500) {
+      return;
+    }
+
+    const targetInfo = resolveInlineDownloadTarget();
+    const inlineButtons = Array.from(document.querySelectorAll('.angel-inline-download-slot'));
+
+    if (!targetInfo?.mount) {
+      inlineButtons.forEach(node => node.remove());
+      GlobalState.refreshMediaDownloadButton?.();
+      GlobalState.inlineDownloadSyncCache = { signature, at: now, mount: null };
+      return;
+    }
+
+    inlineButtons.forEach(node => {
+      if (node.parentElement !== targetInfo.mount) {
+        node.remove();
+      }
+    });
+
+    const existing = Array.from(targetInfo.mount.children).find(
+      child => child.classList?.contains('angel-inline-download-slot')
+    );
+
+    if (existing) {
+      existing._angelContainer = targetInfo.mediaInfo.container;
+      existing.dataset.angelSurface = targetInfo.surface || MEDIA_SURFACES.MEDIA;
+      const button = existing.querySelector('.angel-inline-download-btn');
+      if (button) {
+        const title = getInlineDownloadTitle(targetInfo.surface);
+        button.title = title;
+        button.setAttribute('aria-label', title);
+      }
+      GlobalState.refreshMediaDownloadButton?.();
+      GlobalState.inlineDownloadSyncCache = { signature, at: now, mount: targetInfo.mount };
+      return;
+    }
+
+    const slot = createInlineDownloadButton(targetInfo);
+    if (targetInfo.referenceElement?.parentElement === targetInfo.mount) {
+      targetInfo.referenceElement.insertAdjacentElement('afterend', slot);
+    } else {
+      targetInfo.mount.appendChild(slot);
+    }
+
+    GlobalState.refreshMediaDownloadButton?.();
+    GlobalState.inlineDownloadSyncCache = { signature, at: now, mount: targetInfo.mount };
+  }
+
+  function getCurrentShortcode(container = null) {
+    const containerShortcode = getShortcodeForContainer(container);
+    if (containerShortcode) return containerShortcode;
+
+    return getPathMediaIdentifier();
+  }
+
+  function getShortcodeForContainer(container) {
+    if (!container) return null;
+
+    const link = container.querySelector('a[href*="/p/"], a[href*="/reel/"], a[href*="/reels/"]');
+    const href = link?.getAttribute('href') || '';
+    const match = href.match(/\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/);
+    if (match?.[1]) return match[1];
+
+    if (isStoryPage() || isHighlightPage()) {
+      return getPathMediaIdentifier();
+    }
+
+    return null;
   }
 
   function isLiked() {
@@ -2599,21 +5155,133 @@
   function navigateReel(direction) {
     log('Navigating reel:', direction);
 
-    const scrollContainer = getScrollContainer();
-    const scrollAmount = window.innerHeight;
-
-    scrollContainer.scrollBy({
-      top: direction === 'next' ? scrollAmount : -scrollAmount,
-      behavior: 'smooth'
-    });
-
-    // After scroll completes, detect new video
-    setTimeout(() => {
-      const newVideo = findActiveVideo();
-      if (newVideo && newVideo !== GlobalState.currentVideo) {
-        handleVideoChange(newVideo);
+    const prevVideo = GlobalState.currentVideo;
+    const prevSrc = GlobalState.currentVideoSrc;
+    const prevRect = prevVideo?.getBoundingClientRect?.();
+    const shouldRestoreOverlay = GlobalState.isOverlayActive && GlobalState.enhancedModeActive;
+    const LOCK_FALLBACK_MS = 2800;
+    const scrollTarget = getScrollContainer();
+    const getScrollTop = () => {
+      if (!scrollTarget || scrollTarget === document.documentElement || scrollTarget === document.body) {
+        return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
       }
-    }, 500);
+      return scrollTarget.scrollTop || 0;
+    };
+    const startScrollTop = getScrollTop();
+
+    // Let Instagram's native reel container own the visual scroll. Keeping our
+    // lifted fixed-position video on top makes arrow navigation feel like it
+    // freezes, then snaps.
+    GlobalState.reelNavigationInProgress = true;
+    if (shouldRestoreOverlay) {
+      deactivateOverlay({ resumePlayback: false });
+      GlobalState.activeVideoCache = { video: null, at: 0, path: '', width: 0, height: 0 };
+    }
+
+    clearTimeout(GlobalState.scrollNavTimeout);
+    GlobalState.scrollNavTimeout = setTimeout(() => {
+      GlobalState.scrollNavTimeout = null;
+      GlobalState.reelNavigationInProgress = false;
+      const moved = Math.abs(getScrollTop() - startScrollTop) > window.innerHeight * 0.25;
+      if (!moved && shouldRestoreOverlay && GlobalState.enhancedModeActive && !GlobalState.isOverlayActive) {
+        applyTransforms();
+      }
+    }, LOCK_FALLBACK_MS);
+
+    const scrollByAmount = direction === 'next' ? window.innerHeight : -window.innerHeight;
+    const scrollOptions = { top: scrollByAmount, behavior: 'smooth' };
+    if (scrollTarget?.scrollBy) {
+      scrollTarget.scrollBy(scrollOptions);
+    } else {
+      window.scrollBy(scrollOptions);
+    }
+
+    setTimeout(() => {
+      if (Math.abs(getScrollTop() - startScrollTop) < 8) {
+        document.documentElement.scrollBy(scrollOptions);
+        window.scrollBy(scrollOptions);
+      }
+    }, 180);
+
+    const overlayEl = GlobalState.overlay;
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 24; // 24 × 120ms = 2.88s max
+
+    function finishNavigation(video) {
+      clearTimeout(GlobalState.scrollNavTimeout);
+      GlobalState.scrollNavTimeout = null;
+      GlobalState.reelNavigationInProgress = true;
+      clearHDInteractionSuppression(video);
+      try {
+        handleVideoChange(video);
+      } finally {
+        GlobalState.reelNavigationInProgress = false;
+      }
+    }
+
+    function pickNewVideo() {
+      attempts++;
+
+      const scrollMoved = Math.abs(getScrollTop() - startScrollTop) > window.innerHeight * 0.25;
+      const activeVideo = findActiveVideo(true);
+      const activeSrc = activeVideo ? (activeVideo.currentSrc || activeVideo.src || '') : '';
+      const activeRect = activeVideo?.getBoundingClientRect?.();
+      const activeNearCenter = activeRect
+        ? Math.abs(activeRect.top + activeRect.height / 2 - window.innerHeight / 2) < window.innerHeight * 0.32
+        : false;
+      if (
+        activeVideo &&
+        activeSrc &&
+        activeNearCenter &&
+        (activeVideo !== prevVideo || (activeSrc !== prevSrc && scrollMoved))
+      ) {
+        finishNavigation(activeVideo);
+        return;
+      }
+
+      const candidates = Array.from(document.querySelectorAll('video')).filter(v => {
+        if (overlayEl && overlayEl.contains(v)) return false;
+        if (v.classList.contains('ir-overlay-video')) return false;
+        const src = v.currentSrc || v.src || '';
+        if (!src) return false;
+        if (v === prevVideo && (!scrollMoved || src === prevSrc)) return false;
+        const rect = v.getBoundingClientRect();
+        if (rect.width <= 50 || rect.height <= 50) return false;
+        if (prevRect && !scrollMoved) {
+          const delta = (rect.top + rect.height / 2) - (prevRect.top + prevRect.height / 2);
+          if (direction === 'next' && delta <= 20) return false;
+          if (direction === 'prev' && delta >= -20) return false;
+        }
+        return rect.bottom > 0 && rect.top < window.innerHeight;
+      });
+
+      if (candidates.length > 0) {
+        const centerY = window.innerHeight / 2;
+        candidates.sort((a, b) => {
+          const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+          return Math.abs(ra.top + ra.height / 2 - centerY) -
+                 Math.abs(rb.top + rb.height / 2 - centerY);
+        });
+        finishNavigation(candidates[0]);
+        return;
+      }
+
+      if (attempts < MAX_ATTEMPTS) {
+        setTimeout(pickNewVideo, 120);
+      } else {
+        log('navigateReel: no new video found after', MAX_ATTEMPTS, 'attempts');
+        clearTimeout(GlobalState.scrollNavTimeout);
+        GlobalState.scrollNavTimeout = null;
+        GlobalState.reelNavigationInProgress = false;
+        const moved = Math.abs(getScrollTop() - startScrollTop) > window.innerHeight * 0.25;
+        if (!moved && shouldRestoreOverlay && GlobalState.enhancedModeActive && !GlobalState.isOverlayActive) {
+          applyTransforms();
+        }
+      }
+    }
+
+    setTimeout(pickNewVideo, 100);
   }
 
   // ============================================
@@ -2637,10 +5305,10 @@
           <span class="ir-name">ANGEL</span>
         </div>
         <div class="ir-handle-btns">
-          <button class="ir-btn-icon" data-action="reset" title="Reset View (Esc)">
+          <button class="ir-btn-icon" data-action="reset" data-tooltip="Reset View" data-keys="Esc">
              ${CONFIG.ICONS.RESET}
           </button>
-          <button class="ir-btn-icon" data-action="minimize" title="Minimize/Maximize">
+          <button class="ir-btn-icon" data-action="minimize" data-tooltip="Minimize">
             ${CONFIG.ICONS.MINIMIZE}
           </button>
         </div>
@@ -2649,14 +5317,28 @@
       <div class="ir-content">
         <!-- Playback Controls -->
         <div class="ir-group ir-group-flat">
-          <div class="ir-row ir-playback-row">
-            <button class="ir-btn ir-btn-secondary" data-action="seek-back" title="-5 seconds (←)">
+          <div class="ir-progress-row">
+            <div class="ir-progress-container">
+              <div class="ir-progress-track">
+                <div class="ir-progress-buffered"></div>
+                <div class="ir-progress-played"></div>
+              </div>
+              <input type="range" class="ir-range ir-progress-range" data-action="progress-range" min="0" max="1000" value="0" step="1">
+            </div>
+            <div class="ir-time-row">
+              <span class="ir-time-current" data-display="current-time">0:00</span>
+              <span class="ir-time-sep">/</span>
+              <span class="ir-time-duration" data-display="duration">0:00</span>
+            </div>
+          </div>
+          <div class="ir-row">
+            <button class="ir-btn secondary" data-action="seek-back" data-tooltip="-5s" data-keys="←">
               ${CONFIG.ICONS.REWIND}
             </button>
-            <button class="ir-btn ir-btn-primary ir-btn-play" data-action="play-pause" title="Play/Pause (Space)">
+            <button class="ir-btn ir-btn-play" data-action="play-pause" data-tooltip="Play/Pause" data-keys="Space">
               <span data-display="play-icon">${CONFIG.ICONS.PLAY}</span>
             </button>
-            <button class="ir-btn ir-btn-secondary" data-action="seek-forward" title="+5 seconds (→)">
+            <button class="ir-btn secondary" data-action="seek-forward" data-tooltip="+5s" data-keys="→">
               ${CONFIG.ICONS.FORWARD}
             </button>
           </div>
@@ -2664,12 +5346,8 @@
         
         <!-- Volume Controls -->
         <div class="ir-group">
-          <div class="ir-group-header">
-            <label class="ir-label">VOLUME</label>
-            <kbd class="ir-badge">M</kbd>
-          </div>
           <div class="ir-slider-row">
-             <button class="ir-btn-ghost" data-action="mute" title="Mute/Unmute">
+            <button class="ir-btn-ghost" data-action="mute" data-tooltip="Mute" data-keys="M">
               <span data-display="mute-icon">${CONFIG.ICONS.VOLUME_HIGH}</span>
             </button>
             <div class="ir-slider-wrapper">
@@ -2679,53 +5357,16 @@
           </div>
         </div>
         
-        <!-- Playback Speed Controls -->
+        <!-- Playback Speed & Zoom (Combined Row) -->
         <div class="ir-group">
-          <div class="ir-group-header">
-            <label class="ir-label">SPEED</label>
-            <kbd class="ir-badge">[ / ]</kbd>
-          </div>
           <div class="ir-slider-row">
             <span class="ir-label-small">SPEED</span>
             <div class="ir-slider-wrapper">
                <input type="range" class="ir-range ir-speed-range" data-action="speed-range" min="25" max="200" value="100" step="25">
             </div>
-            <span class="ir-range-value" data-display="speed-val">1.0x</span>
+            <span class="ir-range-value speed-changed" data-display="speed-val">1.0x</span>
           </div>
-        </div>
-        
-        <!-- View Controls (HD, Rotate, Zoom) -->
-        <div class="ir-group">
-          <div class="ir-group-header">
-            <label class="ir-label">VIEW</label>
-          </div>
-          
-          <div class="ir-row">
-            <!-- HD Toggle -->
-             <button class="ir-btn ir-btn-secondary" data-action="toggle-hd" title="Toggle HD Mode">
-              <span data-display="hd-icon">${CONFIG.ICONS.HD}</span>
-              <kbd class="ir-key-badge">H</kbd>
-            </button>
-            
-            <!-- Quality Indicator -->
-            <div class="ir-quality-badge" data-display="quality-badge" title="Current Video Quality">SD</div>
-            
-            <!-- Rotate Group -->
-            <div class="ir-control-group">
-              <button class="ir-btn ir-btn-secondary" data-action="rotate-ccw" title="Rotate Left">
-                ${CONFIG.ICONS.ROTATE_CCW}
-                <kbd class="ir-key-badge">L</kbd>
-              </button>
-               <button class="ir-btn ir-btn-secondary" data-action="rotate-cw" title="Rotate Right">
-                ${CONFIG.ICONS.ROTATE_CW}
-                <kbd class="ir-key-badge">R</kbd>
-              </button>
-               <div class="ir-badge-box" data-display="rotation">0°</div>
-            </div>
-          </div>
-          
-          <!-- Zoom Slider -->
-          <div class="ir-slider-row" style="margin-top: 8px;">
+          <div class="ir-slider-row">
             <span class="ir-label-small">ZOOM</span>
             <div class="ir-slider-wrapper">
                <input type="range" class="ir-range" data-action="zoom-range" min="50" max="300" value="100">
@@ -2734,51 +5375,57 @@
           </div>
         </div>
         
+        <!-- View Controls (HD, Rotate) -->
+        <div class="ir-group">
+          <div class="ir-row">
+            <button class="ir-btn secondary ir-btn-hd" data-action="toggle-hd" data-tooltip="HD Mode" data-keys="H" style="flex: 0 0 auto; padding: 0 14px;">
+              <span data-display="hd-icon">${CONFIG.ICONS.HD}</span>
+            </button>
+            <div class="ir-quality-badge" data-display="quality-badge">SD</div>
+            <div class="ir-control-group" style="flex: 1;">
+              <button class="ir-btn" data-action="rotate-ccw" data-tooltip="Rotate CCW" data-keys="L">
+                ${CONFIG.ICONS.ROTATE_CCW}
+              </button>
+              <div class="ir-badge-box" data-display="rotation">0°</div>
+              <button class="ir-btn" data-action="rotate-cw" data-tooltip="Rotate CW" data-keys="R">
+                ${CONFIG.ICONS.ROTATE_CW}
+              </button>
+            </div>
+          </div>
+        </div>
+        
         <!-- Aspect Ratio -->
         <div class="ir-group">
-          <div class="ir-group-header">
-            <label class="ir-label">ASPECT RATIO</label>
-            <kbd class="ir-badge">A</kbd>
-          </div>
-          <div class="ir-aspect-grid">
-            ${Object.entries(CONFIG.ASPECT_RATIOS).filter(([_, c]) => c.type === 'geometry').map(([key, config]) =>
-      `<button class="ir-aspect-pill" data-action="aspect" data-ratio="${key}" title="${config.label}">${config.label}</button>`
-    ).join('')}
-          </div>
-           <div class="ir-aspect-grid" style="margin-top: 6px;">
-            ${Object.entries(CONFIG.ASPECT_RATIOS).filter(([_, c]) => c.type === 'mode').map(([key, config]) =>
-      `<button class="ir-aspect-pill" data-action="aspect" data-ratio="${key}" title="${config.label}">${config.label}</button>`
+          <div class="ir-aspect-pills">
+            ${Object.entries(CONFIG.ASPECT_RATIOS).map(([key, cfg]) =>
+      `<button class="ir-aspect-pill${key === 'original' ? ' active' : ''}" data-action="aspect" data-ratio="${key}" data-tooltip="${cfg.label}" data-keys="A">${cfg.label}</button>`
     ).join('')}
           </div>
         </div>
         
-        <!-- Modes & Actions -->
+        <!-- View Modes -->
         <div class="ir-group">
-          <div class="ir-row gap-small">
-            <button class="ir-btn ir-btn-mode" data-action="theater" title="Theater Mode">
+          <div class="ir-row">
+            <button class="ir-btn ir-btn-mode" data-action="theater" data-tooltip="Theater Mode" data-keys="T">
               ${CONFIG.ICONS.THEATER}
-              <kbd class="ir-key-badge">T</kbd>
             </button>
-            <button class="ir-btn ir-btn-mode" data-action="fullscreen" title="Fullscreen">
+            <button class="ir-btn ir-btn-mode" data-action="fullscreen" data-tooltip="Fullscreen" data-keys="F">
                ${CONFIG.ICONS.FULLSCREEN}
-               <kbd class="ir-key-badge">F</kbd>
             </button>
           </div>
         </div>
         
-    <!-- Social Actions -->
+        <!-- Social Actions -->
         <div class="ir-group">
-          <div class="ir-group-header">
-            <label class="ir-label">ACTIONS</label>
-          </div>
           <div class="ir-social-grid">
-            <button class="ir-btn ir-btn-social ir-btn-like" data-action="like" title="Like">
+            <button class="ir-btn ir-btn-social ir-btn-like" data-action="like" data-tooltip="Like" data-keys="X">
               <span data-display="like-icon">${CONFIG.ICONS.LIKE}</span>
-              <kbd class="ir-key-badge">X</kbd>
             </button>
-            <button class="ir-btn ir-btn-social ir-btn-save" data-action="save" title="Save">
+            <button class="ir-btn ir-btn-social ir-btn-save" data-action="save" data-tooltip="Save" data-keys="S">
               <span data-display="save-icon">${CONFIG.ICONS.SAVE}</span>
-              <kbd class="ir-key-badge">S</kbd>
+            </button>
+            <button class="ir-btn ir-btn-social ir-btn-download" data-action="download" data-tooltip="Download" data-keys=".">
+              <span data-display="download-icon">${CONFIG.ICONS.DOWNLOAD}</span>
             </button>
           </div>
         </div>
@@ -2803,11 +5450,35 @@
       setPlaybackSpeed(parseInt(e.target.value, 10) / 100);
     });
 
+    const progressRange = panel.querySelector('[data-action="progress-range"]');
+    progressRange.addEventListener('input', (e) => {
+      const video = GlobalState.currentVideo;
+      if (video && isFinite(video.duration) && video.duration > 0) {
+        video.currentTime = (parseInt(e.target.value, 10) / 1000) * video.duration;
+      }
+    });
+
     // Make draggable
     makeDraggable(panel, panel.querySelector('.ir-handle'));
 
+    // Setup custom tooltips for all elements with data-tooltip
+    setupCustomTooltips(panel);
+
     // Auto-hide behavior
     setupAutoHide(panel);
+
+    // Click on minimized panel to expand
+    panel.addEventListener('click', (e) => {
+      if (panel.classList.contains('minimized')) {
+        // Only expand if clicking on the panel itself, not buttons
+        if (!e.target.closest('[data-action]')) {
+          panel.classList.remove('minimized');
+          // Restart hide timer
+          const revealBtn = document.getElementById('angel-reveal-btn');
+          if (revealBtn) revealBtn.classList.remove('visible');
+        }
+      }
+    });
 
     document.body.appendChild(panel);
     GlobalState.controlPanel = panel;
@@ -2844,7 +5515,16 @@
         resetAll();
         break;
       case 'minimize':
-        document.getElementById(CONFIG.SELECTORS.CONTROL_PANEL)?.classList.toggle('minimized');
+        const ctrlPanel = document.getElementById(CONFIG.SELECTORS.CONTROL_PANEL);
+        if (ctrlPanel) {
+          const isMinimized = ctrlPanel.classList.toggle('minimized');
+          // If minimized, remove auto-hide and ensure panel is visible
+          if (isMinimized) {
+            ctrlPanel.classList.remove('auto-hide');
+            const revealBtn = document.getElementById('angel-reveal-btn');
+            if (revealBtn) revealBtn.classList.remove('visible');
+          }
+        }
         break;
       case 'aspect':
         setAspectRatio(btn.dataset.ratio);
@@ -2871,6 +5551,9 @@
       case 'toggle-hd':
         toggleHDMode();
         break;
+      case 'download':
+        triggerDownload();
+        break;
     }
   }
 
@@ -2889,7 +5572,7 @@
     if (zoomRange) zoomRange.value = GlobalState.zoom * 100;
 
     // Aspect ratio buttons
-    panel.querySelectorAll('.ir-aspect').forEach(btn => {
+    panel.querySelectorAll('.ir-aspect-pill').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.ratio === GlobalState.aspectRatio);
     });
 
@@ -2966,23 +5649,49 @@
           speedVal.classList.toggle('speed-changed', currentSpeed !== 1.0);
         }
       }
+
+      // Progress bar and time display
+      const progressRange = panel.querySelector('[data-action="progress-range"]');
+      const currentTimeEl = panel.querySelector('[data-display="current-time"]');
+      const durationEl = panel.querySelector('[data-display="duration"]');
+      if (progressRange && isFinite(video.duration) && video.duration > 0) {
+        // Only update range when user is not dragging
+        if (document.activeElement !== progressRange) {
+          progressRange.value = Math.round((video.currentTime / video.duration) * 1000);
+        }
+        if (currentTimeEl) currentTimeEl.textContent = formatVideoTime(video.currentTime);
+        if (durationEl) durationEl.textContent = formatVideoTime(video.duration);
+
+        // Update progress track visuals
+        const played = panel.querySelector('.ir-progress-played');
+        const buffered = panel.querySelector('.ir-progress-buffered');
+        const progress = (video.currentTime / video.duration) * 100;
+        if (played) played.style.width = `${progress}%`;
+        if (buffered && video.buffered.length > 0) {
+          const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+          buffered.style.width = `${(bufferedEnd / video.duration) * 100}%`;
+        }
+      }
     }
 
-    // Social button states
+    // Social button states — single DOM scan shared by both like and save
     const likeIcon = panel.querySelector('[data-display="like-icon"]');
     const saveIcon = panel.querySelector('[data-display="save-icon"]');
     const likeBtn = panel.querySelector('.ir-btn-like');
     const saveBtn = panel.querySelector('.ir-btn-save');
 
-    if (likeIcon && likeBtn) {
-      const userLiked = isLiked();
-      likeIcon.innerHTML = userLiked ? CONFIG.ICONS.LIKE_ACTIVE : CONFIG.ICONS.LIKE;
-      likeBtn.classList.toggle('active', userLiked);
-    }
-    if (saveIcon && saveBtn) {
-      const userSaved = isSaved();
-      saveIcon.innerHTML = userSaved ? CONFIG.ICONS.SAVE_ACTIVE : CONFIG.ICONS.SAVE;
-      saveBtn.classList.toggle('active', userSaved);
+    if ((likeIcon && likeBtn) || (saveIcon && saveBtn)) {
+      const socialButtons = findReelActionButtons();
+      if (likeIcon && likeBtn) {
+        const userLiked = getLikeState(socialButtons);
+        likeIcon.innerHTML = userLiked ? CONFIG.ICONS.LIKE_ACTIVE : CONFIG.ICONS.LIKE;
+        likeBtn.classList.toggle('active', !!userLiked);
+      }
+      if (saveIcon && saveBtn) {
+        const userSaved = getSaveState(socialButtons);
+        saveIcon.innerHTML = userSaved ? CONFIG.ICONS.SAVE_ACTIVE : CONFIG.ICONS.SAVE;
+        saveBtn.classList.toggle('active', !!userSaved);
+      }
     }
   }
 
@@ -3049,21 +5758,85 @@
     }
   }
 
+  // Setup beautiful custom tooltips
+  function setupCustomTooltips(panel) {
+    // Create tooltip element if not exists
+    let tooltip = document.getElementById('ir-global-tooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'ir-global-tooltip';
+      tooltip.className = 'ir-tooltip';
+      tooltip.innerHTML = '<div class="ir-tooltip-content"><span class="ir-tooltip-text"></span><kbd class="ir-tooltip-keys"></kbd></div>';
+      tooltip.style.position = 'fixed';
+      tooltip.style.zIndex = '100050';
+      tooltip.style.pointerEvents = 'none';
+      tooltip.style.opacity = '0';
+      tooltip.style.transition = 'opacity 0.1s ease';
+      document.body.appendChild(tooltip);
+    }
+
+    const tooltipText = tooltip.querySelector('.ir-tooltip-text');
+    const tooltipKeys = tooltip.querySelector('.ir-tooltip-keys');
+
+    // Find all elements with data-tooltip
+    const elements = panel.querySelectorAll('[data-tooltip]');
+    elements.forEach(el => {
+      el.addEventListener('mouseenter', (e) => {
+        const text = el.dataset.tooltip;
+        const keys = el.dataset.keys;
+        if (!text) return;
+
+        tooltipText.textContent = text;
+        if (keys) {
+          tooltipKeys.textContent = keys;
+          tooltipKeys.style.display = 'inline';
+        } else {
+          tooltipKeys.style.display = 'none';
+        }
+
+        const rect = el.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        // Position above the element, centered
+        const top = rect.top - 38;
+        let left = rect.left + (rect.width / 2);
+
+        // Constrain to viewport
+        tooltip.style.opacity = '1';
+        const tooltipWidth = tooltip.offsetWidth || 120;
+        left = Math.max(10, Math.min(left - (tooltipWidth / 2), window.innerWidth - tooltipWidth - 10));
+
+        tooltip.style.top = `${top}px`;
+        tooltip.style.left = `${left}px`;
+      });
+
+      el.addEventListener('mouseleave', () => {
+        tooltip.style.opacity = '0';
+      });
+    });
+  }
+
   function setupAutoHide(panel) {
     const HIDE_DELAY = CONFIG.UI_HIDE_DELAY || 3000;
 
-    // Create floating reveal button
+    // Create or reuse the floating reveal button
     let revealBtn = document.getElementById('angel-reveal-btn');
     if (!revealBtn) {
       revealBtn = document.createElement('button');
       revealBtn.id = 'angel-reveal-btn';
       revealBtn.className = 'angel-reveal-btn';
       revealBtn.innerHTML = '✦';
-      revealBtn.title = 'Show ANGEL Panel';
       document.body.appendChild(revealBtn);
     }
 
-    // Store the timer on the element itself to avoid conflicts
+    // Create edge hover zone for easier reveal
+    let edgeZone = document.getElementById('ir-edge-zone');
+    if (!edgeZone) {
+      edgeZone = document.createElement('div');
+      edgeZone.id = 'ir-edge-zone';
+      edgeZone.className = 'ir-edge-zone';
+      document.body.appendChild(edgeZone);
+    }
+
     const clearHideTimer = () => {
       if (panel._hideTimer) {
         clearTimeout(panel._hideTimer);
@@ -3078,6 +5851,10 @@
     };
 
     const hidePanel = () => {
+      // Don't hide if minimized
+      if (panel.classList.contains('minimized')) {
+        return;
+      }
       panel.classList.add('auto-hide');
       revealBtn.classList.add('visible');
     };
@@ -3085,16 +5862,14 @@
     const startHideTimer = () => {
       clearHideTimer();
 
-      // If panel is minimized or interacting, don't hide
+      // Don't hide if panel is minimized or currently hovered
       if (panel.classList.contains('minimized') ||
-        document.getElementById('angel-shortcuts-list')?.style.display === 'grid' ||
-        panel.matches(':hover')) {
+          panel.matches(':hover') ||
+          document.getElementById('angel-shortcuts-list')?.style.display === 'grid') {
         return;
       }
 
-      panel._hideTimer = setTimeout(() => {
-        hidePanel();
-      }, HIDE_DELAY);
+      panel._hideTimer = setTimeout(hidePanel, HIDE_DELAY);
     };
 
     // Click reveal button to show panel
@@ -3102,18 +5877,42 @@
       e.preventDefault();
       e.stopPropagation();
       showPanel();
-      startHideTimer(); // Start timer again after revealing
+      // Don't restart timer immediately - let user interact
+      setTimeout(() => startHideTimer(), 100);
     });
 
-    // Event listeners for panel
-    panel.addEventListener('mouseenter', () => {
-      showPanel();
+    // Hover edge zone to reveal
+    edgeZone.addEventListener('mouseenter', () => {
+      if (panel.classList.contains('auto-hide')) {
+        showPanel();
+      }
     });
 
+    // Panel mouse events
+    panel.addEventListener('mouseenter', showPanel);
     panel.addEventListener('mouseleave', startHideTimer);
 
-    // Initial start
+    // Initial hide timer
     startHideTimer();
+  }
+
+  // Clamp an absolutely-positioned element so it stays fully within the viewport.
+  function clampToViewport(element) {
+    const rect = element.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8; // px gap from edges
+
+    let left = parseInt(element.style.left) || rect.left;
+    let top = parseInt(element.style.top) || rect.top;
+
+    left = Math.min(Math.max(left, margin), vw - rect.width - margin);
+    top  = Math.min(Math.max(top,  margin), vh - rect.height - margin);
+
+    element.style.left  = `${left}px`;
+    element.style.top   = `${top}px`;
+    element.style.right  = 'auto';
+    element.style.bottom = 'auto';
   }
 
   function makeDraggable(element, handle) {
@@ -3160,6 +5959,12 @@
       isDragging = false;
       handle.style.cursor = 'grab';
       element.style.transition = '';
+      // Snap back if drag moved panel partially off-screen
+      clampToViewport(element);
+      // Persist the new position
+      const left = parseInt(element.style.left) || 0;
+      const top  = parseInt(element.style.top)  || 0;
+      Settings.savePanelPosition(left, top);
     };
 
     handle.addEventListener('mousedown', onMouseDown);
@@ -3186,8 +5991,13 @@
     }
 
     // Special handling for up/down arrows in overlay mode
-    if ((key === 'arrowup' || key === 'arrowdown') && GlobalState.isOverlayActive) {
+    if ((key === 'arrowup' || key === 'arrowdown') &&
+        (GlobalState.isOverlayActive || (GlobalState.enhancedModeActive && GlobalState.scrollNavTimeout))) {
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      // Debounce: ignore key-repeat events until the previous navigation settles
+      if (GlobalState.scrollNavTimeout) return;
       navigateReel(key === 'arrowdown' ? 'next' : 'prev');
       return;
     }
@@ -3258,7 +6068,7 @@
       case CONFIG.KEYBOARD.ASPECT_CYCLE:
         cycleAspectRatio();
         break;
-      case 'm':
+      case CONFIG.KEYBOARD.MUTE:
         toggleMute();
         break;
       case ' ':  // Space bar for play/pause
@@ -3273,6 +6083,13 @@
       case CONFIG.KEYBOARD.SAVE:
         triggerSave();
         break;
+      case CONFIG.KEYBOARD.DOWNLOAD:
+        if (!isDownloadShortcut(e)) {
+          handled = false;
+          break;
+        }
+        triggerDownload();
+        break;
       default:
         handled = false;
     }
@@ -3280,8 +6097,18 @@
     if (handled) {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       // Control panel stays hidden - keyboard shortcuts should be discrete
     }
+  }
+
+  function isDownloadShortcut(e) {
+    const modifier = CONFIG.KEYBOARD.DOWNLOAD_MODIFIER;
+    if (!modifier) return true;
+    if (modifier === true || modifier === 'primary') return e.metaKey || e.ctrlKey;
+    if (modifier === 'shift') return e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey;
+    if (modifier === 'alt') return e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey;
+    return false;
   }
 
   function handleKeyup(e) {
@@ -3316,15 +6143,12 @@
     }
 
     // In overlay mode, scroll navigates reels
-    if (GlobalState.isOverlayActive) {
+    if (GlobalState.isOverlayActive || (GlobalState.enhancedModeActive && GlobalState.scrollNavTimeout)) {
       e.preventDefault();
+      e.stopPropagation();
 
       // Debounce navigation
       if (GlobalState.scrollNavTimeout) return;
-
-      GlobalState.scrollNavTimeout = setTimeout(() => {
-        GlobalState.scrollNavTimeout = null;
-      }, CONFIG.SCROLL_NAV_DEBOUNCE);
 
       navigateReel(e.deltaY > 0 ? 'next' : 'prev');
     }
@@ -3335,13 +6159,32 @@
   // ============================================
 
   function setupObservers() {
+    if (!document.__angel_like_hd_pause__) {
+      document.addEventListener('click', (event) => {
+        if (isInstagramLikeTarget(event.target)) {
+          const activeVideo = findActiveVideo(true) || GlobalState.currentVideo;
+          pauseHDRestoration(4500, 'native like click', activeVideo);
+        }
+      }, true);
+      document.addEventListener('dblclick', (event) => {
+        if (event.target?.closest?.('article, [role="button"], section')) {
+          const activeVideo = findActiveVideo(true) || GlobalState.currentVideo;
+          if (activeVideo) {
+            pauseHDRestoration(4500, 'native double-tap like', activeVideo);
+          }
+        }
+      }, true);
+      document.__angel_like_hd_pause__ = true;
+    }
+
     // Debounced video detection
     const detectVideo = debounce(() => {
-      const video = findActiveVideo();
+      const video = findActiveVideo(true);
       if (video) {
         handleVideoChange(video);
       }
       updatePanelVisibility();
+      syncInlineDownloadButtons(true);
     }, CONFIG.VIDEO_DETECT_DEBOUNCE);
 
     // Optimized Mutation observer with specific filters to reduce overhead
@@ -3349,16 +6192,22 @@
       GlobalState.mutationObserver = new MutationObserver((mutations) => {
         // Filter mutations to only video-relevant changes
         const hasRelevantChange = mutations.some(mutation => {
+          if (mutation.target?.closest?.('.angel-inline-download-slot')) {
+            return false;
+          }
+
           // Check if mutation affects video elements
           if (mutation.type === 'childList') {
             const hasVideo = Array.from(mutation.addedNodes).some(node =>
-              node.nodeName === 'VIDEO' || (node.querySelector && node.querySelector('video'))
+              node.nodeName === 'VIDEO' ||
+              node.nodeName === 'IMG' ||
+              (node.querySelector && node.querySelector('video, img'))
             );
             if (hasVideo) return true;
           }
-          // Check for src attribute changes on video elements
-          if (mutation.type === 'attributes' && mutation.target.nodeName === 'VIDEO') {
-            return mutation.attributeName === 'src';
+          // Check for media attribute changes on visible media elements
+          if (mutation.type === 'attributes' && (mutation.target.nodeName === 'VIDEO' || mutation.target.nodeName === 'IMG')) {
+            return ['src', 'srcset', 'style'].includes(mutation.attributeName);
           }
           return false;
         });
@@ -3374,7 +6223,7 @@
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['src', 'style'], // Only watch these attributes
+        attributeFilter: ['src', 'srcset', 'style'], // Only watch these attributes
         attributeOldValue: false // Don't store old values (saves memory)
       });
     } catch (e) {
@@ -3390,19 +6239,24 @@
     // Listen for navigation
     window.addEventListener('popstate', detectVideo);
 
-    // Intercept history API
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
+    // Intercept history API — guard against double-patching on re-init
+    if (!history.pushState.__angel_patched__) {
+      const originalPushState = history.pushState;
+      history.pushState = function (...args) {
+        originalPushState.apply(this, args);
+        detectVideo();
+      };
+      history.pushState.__angel_patched__ = true;
+    }
 
-    history.pushState = function (...args) {
-      originalPushState.apply(this, args);
-      detectVideo();
-    };
-
-    history.replaceState = function (...args) {
-      originalReplaceState.apply(this, args);
-      detectVideo();
-    };
+    if (!history.replaceState.__angel_patched__) {
+      const originalReplaceState = history.replaceState;
+      history.replaceState = function (...args) {
+        originalReplaceState.apply(this, args);
+        detectVideo();
+      };
+      history.replaceState.__angel_patched__ = true;
+    }
 
     // Window resize
     try {
@@ -3414,6 +6268,12 @@
         if (viewportChanged) {
           GlobalState.lastViewport.width = window.innerWidth;
           GlobalState.lastViewport.height = window.innerHeight;
+
+          // Keep control panel inside the new viewport bounds
+          const panel = document.getElementById(CONFIG.SELECTORS.CONTROL_PANEL);
+          if (panel && panel.style.left) {
+            clampToViewport(panel);
+          }
         }
 
         if (GlobalState.isOverlayActive) {
@@ -3472,6 +6332,7 @@
             GlobalState.performanceMetrics.videoDetections++;
             GlobalState.performanceMetrics.lastDetectionTime = Date.now();
             handleVideoChange(video);
+            syncInlineDownloadButtons(true);
           }
         }
       } catch (e) {
@@ -3519,6 +6380,8 @@
       GlobalState.controlPanel?.remove();
       document.getElementById('ir-exit-hint')?.remove();
       document.getElementById(CONFIG.SELECTORS.TOAST)?.remove();
+      document.getElementById('angel-hover-download-btn')?.remove();
+      document.querySelectorAll('.angel-inline-download-slot').forEach(node => node.remove());
     } catch (e) {
       log('Error removing elements:', e);
     }
@@ -3538,6 +6401,17 @@
         }
       }
 
+      if (GlobalState.mediaDownloadHandlers) {
+        document.removeEventListener('mouseover', GlobalState.mediaDownloadHandlers.mouseover);
+        document.removeEventListener('mouseout', GlobalState.mediaDownloadHandlers.mouseout);
+        document.removeEventListener('contextmenu', GlobalState.mediaDownloadHandlers.contextmenu, true);
+        GlobalState.mediaDownloadHandlers = null;
+      }
+
+      GlobalState.refreshMediaDownloadButton = null;
+      GlobalState.activeVideoCache = { video: null, at: 0, path: '', width: 0, height: 0 };
+      GlobalState.inlineDownloadSyncCache = { signature: '', at: 0, mount: null };
+
       // Clean up video event listeners
       if (GlobalState.currentVideo) {
         const video = GlobalState.currentVideo;
@@ -3550,6 +6424,10 @@
         if (video._dimensionCheckInterval) {
           clearInterval(video._dimensionCheckInterval);
           delete video._dimensionCheckInterval;
+        }
+        if (video._dimensionResizeObserver) {
+          video._dimensionResizeObserver.disconnect();
+          delete video._dimensionResizeObserver;
         }
         if (video._hdQualityCheckInterval) {
           clearInterval(video._hdQualityCheckInterval);
@@ -3592,6 +6470,18 @@
       if (message.action === 'cleanup') {
         cleanup();
         sendResponse({ success: true });
+      } else if (message.action === 'downloadContextMedia') {
+        const contextMediaIsFresh = GlobalState.contextDownloadMediaInfo &&
+          Date.now() - (GlobalState.contextDownloadMediaAt || 0) < 30000;
+        const mediaInfo = contextMediaIsFresh ? GlobalState.contextDownloadMediaInfo : detectCurrentMedia();
+
+        if (!mediaInfo?.type || mediaInfo.type === 'unknown') {
+          sendResponse({ success: false, error: 'No media found' });
+          return;
+        }
+
+        triggerDownload(mediaInfo);
+        sendResponse({ success: true });
       } else if (message.action === 'getPerformanceMetrics') {
         sendResponse({
           success: true,
@@ -3607,8 +6497,6 @@
       }
     });
   }
-
-  window.__instamutate_cleanup = cleanup;
 
   // Expose performance metrics for debugging
   window.__ANGEL_PERFORMANCE__ = () => {
@@ -3645,6 +6533,9 @@
 
   function init() {
     log(`v${CONFIG.VERSION} initializing...`);
+
+    // Restore persisted user preferences (async, non-blocking)
+    Settings.load();
 
     try {
       // Add event listeners with error boundaries
@@ -3700,6 +6591,14 @@
       // Create UI if on reels page with retry logic for reliability
       try {
         updatePanelVisibility();
+
+        // Setup hover download button
+        try {
+          setupMediaDownloadButtons();
+          syncInlineDownloadButtons(true);
+        } catch (e) {
+          log('Error setting up media download buttons:', e);
+        }
 
         // Retry panel creation if it didn't appear (reliability fix)
         setTimeout(() => {

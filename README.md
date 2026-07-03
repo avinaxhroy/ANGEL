@@ -1,4 +1,4 @@
-# ANGEL 🔄
+# ANGEL
 
 > A simple way to watch Instagram Reels.
 
